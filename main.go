@@ -6,8 +6,8 @@ import (
 	"os"
 	"syscall"
 
-	"example/ctx"
-	"example/routines/anonymizer"
+	"github.com/nixys/nxs-data-anonymizer/ctx"
+	"github.com/nixys/nxs-data-anonymizer/routines/anonymizer"
 
 	_ "github.com/go-sql-driver/mysql"
 	appctx "github.com/nixys/nxs-go-appctx/v2"

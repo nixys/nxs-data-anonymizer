@@ -1,4 +1,4 @@
-module example
+module github.com/nixys/nxs-data-anonymizer
 
 go 1.19
 

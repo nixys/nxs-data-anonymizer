@@ -2,8 +2,9 @@ package relfilter
 
 import (
 	"bytes"
-	"example/misc"
 	"fmt"
+
+	"github.com/nixys/nxs-data-anonymizer/misc"
 )
 
 type Rules struct {

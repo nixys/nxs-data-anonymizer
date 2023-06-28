@@ -2,8 +2,9 @@ package mysql_anonymize
 
 import (
 	"context"
-	"example/modules/filters/relfilter"
 	"io"
+
+	"github.com/nixys/nxs-data-anonymizer/modules/filters/relfilter"
 
 	fsm "github.com/nixys/nxs-go-fsm"
 )

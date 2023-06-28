@@ -2,9 +2,10 @@ package mysql_anonymize
 
 import (
 	"bytes"
-	"example/modules/filters/relfilter"
 	"fmt"
 	"strconv"
+
+	"github.com/nixys/nxs-data-anonymizer/modules/filters/relfilter"
 )
 
 func dhCreateTableName(usrCtx any, deferred, token []byte) ([]byte, error) {

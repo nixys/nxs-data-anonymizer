@@ -1,9 +1,10 @@
 package ctx
 
 import (
-	"example/ds/mysql"
-	"example/modules/filters/relfilter"
 	"fmt"
+
+	"github.com/nixys/nxs-data-anonymizer/ds/mysql"
+	"github.com/nixys/nxs-data-anonymizer/modules/filters/relfilter"
 
 	appctx "github.com/nixys/nxs-go-appctx/v2"
 )

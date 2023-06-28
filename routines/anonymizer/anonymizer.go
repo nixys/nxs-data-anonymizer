@@ -2,13 +2,14 @@ package anonymizer
 
 import (
 	"context"
-	"example/ctx"
 	"io"
+
+	"github.com/nixys/nxs-data-anonymizer/ctx"
 
 	appctx "github.com/nixys/nxs-go-appctx/v2"
 
-	mysql_anonymize "example/modules/anonymizers/mysql"
-	pgsql_anonymize "example/modules/anonymizers/pgsql"
+	mysql_anonymize "github.com/nixys/nxs-data-anonymizer/modules/anonymizers/mysql"
+	pgsql_anonymize "github.com/nixys/nxs-data-anonymizer/modules/anonymizers/pgsql"
 )
 
 // Runtime executes the routine
