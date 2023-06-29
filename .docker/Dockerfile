@@ -7,7 +7,7 @@ RUN go build -o /nxs-data-anonymizer
 
 FROM alpine
 
-RUN apk update --no-cache && apk add --no-cache tar postgresql-client mysql-client
+RUN apk update --no-cache && apk add --no-cache tar postgresql-client mysql-client libc6-compat
 
 COPY --from=build-env /nxs-data-anonymizer /
 
