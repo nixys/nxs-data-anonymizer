@@ -5,7 +5,7 @@ import (
 )
 
 type confOpts struct {
-	LogFile  string `conf:"logfile" conf_extraopts:"default=stdout"`
+	LogFile  string `conf:"logfile" conf_extraopts:"default=stderr"`
 	LogLevel string `conf:"loglevel" conf_extraopts:"default=info"`
 
 	Filters map[string]filterConf `conf:"filters"`
