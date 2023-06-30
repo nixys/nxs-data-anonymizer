@@ -2,7 +2,7 @@
 
 ## Introduction
 
-Nixys Data Anonymizer is a tool to anonymize a  **PostgreSQL** and **MySQL** databases dumps.
+Nixys Data Anonymizer is a tool to anonymize a  **PostgreSQL** and **MySQL** database dumps.
 
 ### Features
 
