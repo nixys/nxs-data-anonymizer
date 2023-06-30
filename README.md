@@ -29,7 +29,7 @@ To operate with your database anonymization via console you need following:
 
 For example, use the following command if you need to anonymize your PostgreSQL database from production to dev on fly (PostgreSQL Client need to be installed):
 ```console
-export PGPASSWORD=changeme; pg_dump -U postgres prod | /path/to/nxs-data-anonymizer -t pgsql -c /path/to/nxs-data-anonymizer.conf | psql -U postgres dev
+export PGPASSWORD=password; pg_dump -U postgres prod | /path/to/nxs-data-anonymizer -t pgsql -c /path/to/nxs-data-anonymizer.conf | psql -U postgres dev
 ```
 
 #### GitLab CI
