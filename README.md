@@ -212,7 +212,7 @@ Following features are already in backlog for our development team and will be r
 
 ## Feedback
 
-For support and feedbak please contact me:
+For support and feedbaсk please contact me:
 - telegram: [@borisershov](https://t.me/borisershov)
 - e-mail: b.ershov@nixys.ru
 
