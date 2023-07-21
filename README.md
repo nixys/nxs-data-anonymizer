@@ -1,8 +1,8 @@
-# Nixys Data Anonymizer
+# nxs-data-anonymizer
 
 ## Introduction
 
-Nixys Data Anonymizer is a tool to anonymize a  **PostgreSQL** and **MySQL** databases dump.
+nxs-data-anonymizer is a tool to anonymize a **PostgreSQL** and **MySQL** databases dump.
 
 ### Features
 
@@ -17,15 +17,15 @@ Development teams and projects who has production and test/dev/stage or dynamic 
 
 ## Quickstart
 
-Inspect your database structure and [set up](#Settings) the Nixys Data Anonymizer config in accordance with the sensitive data you need to anonymize. 
+Inspect your database structure and [set up](#Settings) the nxs-data-anonymizer config in accordance with the sensitive data you need to anonymize. 
 
 You are able to use this tool in any way you want. Three most common ways are described below.
 
 #### Console
 
 To operate with your database anonymization via console you need following:
-- Download and untar the Nixys Data Anonymizer [binary](https://github.com/nixys/nxs-data-anonymizer/releases)
-- Run the Nixys Data Anonymizer through the command line with an [arguments](#command-line-arguments) you want to use
+- Download and untar the nxs-data-anonymizer [binary](https://github.com/nixys/nxs-data-anonymizer/releases)
+- Run the nxs-data-anonymizer through the command line with an [arguments](#command-line-arguments) you want to use
 
 For example, use the following command if you need to anonymize your PostgreSQL database from production to dev on fly (PostgreSQL Client need to be installed):
 ```console
@@ -34,7 +34,7 @@ export PGPASSWORD=password; pg_dump -U postgres prod | /path/to/nxs-data-anonymi
 
 #### GitLab CI
 
-This section describes how to integrate Nixys Data Anonymizer into your GitLab CI. You may add jobs below into your `.gitlab-ci.yml` and adjust it for yourself.
+This section describes how to integrate nxs-data-anonymizer into your GitLab CI. You may add jobs below into your `.gitlab-ci.yml` and adjust it for yourself.
 
 ##### Job: anonymize prod
 
@@ -105,7 +105,7 @@ This section contains a description for CI/CD variables used in GitLab CI job sa
 
 | Variable | Description |
 | :---: | :---: |
-|`NXS_DA_CFG`|Nixys Data Anonymizer config|
+|`NXS_DA_CFG`|nxs-data-anonymizer config|
 |`PG_HOST_PROD` |PgSQL host|
 |`PG_USER_PROD`|PgSQL user|
 |`PG_PASS_PROD`|PgSQL password|
@@ -174,7 +174,7 @@ You need to get a dump with fake values:
 - For `admin`: preset fixed value for an API key to avoid a need to change an app settings in your dev/test/stage or local environment after downloading the dump
 - For others: usernames in format `user_N` (where `N` it is a user ID) and unique random API keys
 
-In accordance with this conditions, the Nixys Data Anonymizer config may looks like this:
+In accordance with this conditions, the nxs-data-anonymizer config may looks like this:
 
 ```yaml
 filters:
@@ -218,4 +218,4 @@ For support and feedbaсk please contact me:
 
 ## License
 
-Nixys Data Anonymizer is released under the [GPLv3](LICENSE).
+nxs-data-anonymizer is released under the [Apache License 2.0](LICENSE).
