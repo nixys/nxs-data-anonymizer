@@ -17,7 +17,7 @@ Development and project teams which are dealing with production and test/dev/sta
 
 ## Quickstart
 
-Inspect your database structure and [set up](#Settings) the nxs-data-anonymizer config in accordance with the sensitive data you need to anonymize. 
+Inspect your database structure and [set up](#settings) the nxs-data-anonymizer config in accordance with the sensitive data you need to anonymize. 
 
 You are able to use this tool in any way you want. Three most common ways are described below.
 
