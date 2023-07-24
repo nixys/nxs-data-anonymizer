@@ -2,18 +2,18 @@
 
 ## Introduction
 
-nxs-data-anonymizer is a tool to anonymize a **PostgreSQL** and **MySQL** databases dump.
+nxs-data-anonymizer is a tool for anonymizing **PostgreSQL** and **MySQL** databases dump.
 
 ### Features
 
 - PgSQL (_all versions_) and MySQL/MariaDB/Percona (_all versions_) are supported
-- Flexible data faking based on Go templates and [Sprig template library](https://masterminds.github.io/sprig/) like the [Helm](https://helm.sh/docs/chart_template_guide/functions_and_pipelines/). Also you may use a values of other columns for same row to build more flexible rules
-- Stream data processing. That's mean you can a use the tool through a pipe in command line and redirect dump from source DB directly to the destination DB with required transformations
+- Flexible data faking based on Go templates and [Sprig template’s library](https://masterminds.github.io/sprig/) like [Helm](https://helm.sh/docs/chart_template_guide/functions_and_pipelines/). You may also use values of other columns for same row to build more flexible rules
+- Stream data processing. It means that you can a use the tool through a pipe in command line and redirect dump from source DB directly to the destination DB with required transformations
 - Easy to integrate into your CI/CD
 
-### Who use the tool
+### Who can use the tool
 
-Development teams and projects who has production and test/dev/stage or dynamic namespaces with databases and needs to be ensure for security and prevent data leaks.
+Development and project teams which are dealing with production and test/dev/stage or dynamic namespaces with databases and need to ensure security and prevent data leaks.
 
 ## Quickstart
 
@@ -23,9 +23,9 @@ You are able to use this tool in any way you want. Three most common ways are de
 
 #### Console
 
-To operate with your database anonymization via console you need following:
+In order to operate with your database anonymization via console you need to go through the following steps:
 - Download and untar the nxs-data-anonymizer [binary](https://github.com/nixys/nxs-data-anonymizer/releases)
-- Run the nxs-data-anonymizer through the command line with an [arguments](#command-line-arguments) you want to use
+- Run the nxs-data-anonymizer through the command line with [arguments](#command-line-arguments) you want to use
 
 For example, use the following command if you need to anonymize your PostgreSQL database from production to dev on fly (PostgreSQL Client need to be installed):
 ```console
@@ -34,13 +34,13 @@ export PGPASSWORD=password; pg_dump -U postgres prod | /path/to/nxs-data-anonymi
 
 #### GitLab CI
 
-This section describes how to integrate nxs-data-anonymizer into your GitLab CI. You may add jobs below into your `.gitlab-ci.yml` and adjust it for yourself.
+This section describes how to integrate nxs-data-anonymizer into your GitLab CI. You may add jobs presented below into your `.gitlab-ci.yml` and adjust it for yourself.
 
 ##### Job: anonymize prod
 
-Job described in this section do the following:
+Job described in this section is able to perform the following tasks:
 - Run when special tag for `main` branch is set
-- Create a `production` database dump, anonymize it and updaload into s3 bucket
+- Create a `production` database dump, anonymize and upload it into s3 bucket
 
 Job sample:
 ```yaml
@@ -66,8 +66,8 @@ anonymize:
 
 ##### Job: update stage
 
-Job described in this section do the following:
-- Manual job for `stage`branch
+Job described in this section deals with the following:
+- Manual job for `stage` branch
 - Download the anonymized dump from s3 bucket and load into `stage` database
 
 Job sample:
@@ -91,7 +91,7 @@ restore-stage:
 
 ##### CI/CD variables
 
-This section contains a description for CI/CD variables used in GitLab CI job samples above.
+This section contains a description of CI/CD variables used in GitLab CI job samples above.
 
 ###### General
 
@@ -124,24 +124,24 @@ _Comming soon ..._
 
 ### Settings
 
-Default configuration file path: `/nxs-data-anonymizer.conf`. File represented in yaml.
+Default configuration file path: `/nxs-data-anonymizer.conf`. The file is represented in yaml.
 
 #### Command line arguments
 
-| Argument         | Short   | Required | Has value | Default value | Description                                                      |
+| Argument         | Short   | Required | Having value | Default value | Description                                                      |
 | :---:            | :---:   | :---:    | :---:     | :---:         |---                                                               |
 | `--help`      | `-h` | No   | No    |  -      | Show program help message |
 | `--version`      | `-v` | No   | No    |  -      | Show program version |
 | `--conf`      | `-c` | No   | Yes    |  `/nxs-data-anonymizer.conf`      | Configuration file path |
 | `--input`      | `-i` | No   | Yes    |  -     | File to read data from. If not specified `stdin` will be used |
 | `--output`      | `-o` | No   | Yes    |  -     | File to write data to. If not specified `stdout` will be used |
-| `--type`      | `-t` | Yes   | Yes    |  -     | Data base dump file type. Available values: `pgsql`, `mysql` |
+| `--type`      | `-t` | Yes   | Yes    |  -     | Database dump file type. Available values: `pgsql`, `mysql` |
 
 #### General settings
 
 | Option         | Type   | Required | Default value | Description                                                      |
 |---             | :---:  | :---:    | :---:         |---                                                               |
-| `logfile`      | String | No       | `stderr`      | Log file path. Also you may use `stdout` and `stderr` |
+| `logfile`      | String | No       | `stderr`      | Log file path. You may also use `stdout` and `stderr` |
 | `loglevel`     | String | No       | `info`        | Log level. Available values: `debug`, `warn`, `error` and `info` |
 | `filters`          | Map of [Filters](#filters-settings) | No      | -             | Filters set for specified tables (key as a table name). Note: for PgSQL you also need to specify a scheme (e.g. `public.tablename`) |
 
@@ -157,8 +157,8 @@ Filters description for specified table.
 
 | Option        | Type   | Required | Default value | Description                                                      |
 |---            | :---:  | :---:    | :---:         |---                                                               |
-| `value`       | String | No       | -             | A value to be used for replace at every cell in specified column. This value may be either fixed value or Go template with the [Sprig template library](https://masterminds.github.io/sprig/) functions. You also may use in the rules a values of other columns for same row (before substitutions) |
-| `unique`      | Bool   | No       | `false`       | If true checks the generated value for cell ischemes unique whole the column |
+| `value`       | String | No       | -             | The value to be used to replace at every cell in specified column. This value may be either fixed value or Go template with the [Sprig template library's](https://masterminds.github.io/sprig/) functions. You may also use values of other columns in the rules for same row (with values before substitutions) |
+| `unique`      | Bool   | No       | `false`       | If true checks the generated value for cell is unique whole the column |
 
 #### Example
 
@@ -171,10 +171,10 @@ Imagine you have a simple table `users` in your production PgSQL like this:
 | 3 | `bob`   | `owp7hob5s3o083d5hmursxgcv9wc4foyl20cbxbrr73egj6jkx` |
 
 You need to get a dump with fake values:
-- For `admin`: preset fixed value for an API key to avoid a need to change an app settings in your dev/test/stage or local environment after downloading the dump
+- For `admin`: preset fixed value for an API key to avoid the need to change an app settings in your dev/test/stage or local environment after downloading the dump
 - For others: usernames in format `user_N` (where `N` it is a user ID) and unique random API keys
 
-In accordance with this conditions, the nxs-data-anonymizer config may looks like this:
+In accordance with these conditions, the nxs-data-anonymizer config may look like this:
 
 ```yaml
 filters:
@@ -187,7 +187,7 @@ filters:
         unique: true
 ```
 
-Now you may execute following command to load anonymized data into your dev DB:
+Now you may execute the following command in order to load anonymized data into your dev DB:
 
 ```
 pgdump ... | ./nxs-data-anonymizer -c filters.conf | psql -h localhost -U user example
@@ -207,8 +207,8 @@ It's easy.
 Following features are already in backlog for our development team and will be released soon:
 - Global variables with the templated values you may use through the filters for all tables and columns
 - Ability to delete tables and rows from faked dump 
-- Ability to output into log a custom messages. Useful to obtain some generated data like a admin passwords, etc
-- Support for more databases
+- Ability to output into log a custom messages. It’s quite useful it order to obtain some generated data like admin passwords, etc
+- Support of a big variety of databases
 
 ## Feedback
 
