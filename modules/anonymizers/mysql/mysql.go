@@ -210,11 +210,22 @@ func Init(ctx context.Context, r io.Reader, rules relfilter.Rules) io.Reader {
 				stateInsertIntoTableName: {
 					NextStates: []fsm.NextState{
 						{
-							Name: stateValuesSearch,
+							Name: stateValuesSearchKeyword,
 							Switch: fsm.Switch{
 								Trigger: []byte("`"),
 							},
 							DataHandler: dhInsertIntoTableName,
+						},
+					},
+				},
+				stateValuesSearchKeyword: {
+					NextStates: []fsm.NextState{
+						{
+							Name: stateValuesSearch,
+							Switch: fsm.Switch{
+								Trigger: []byte("VALUES"),
+							},
+							DataHandler: nil,
 						},
 					},
 				},
