@@ -2,7 +2,7 @@
 
 ## Introduction
 
-nxs-data-anonymizer is a tool for anonymizing **PostgreSQL** and **MySQL** databases dump.
+nxs-data-anonymizer is a tool for anonymizing **PostgreSQL** and **MySQL** databases' dump.
 
 ### Features
 
