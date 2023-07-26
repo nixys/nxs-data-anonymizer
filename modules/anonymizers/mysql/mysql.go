@@ -224,6 +224,10 @@ func Init(ctx context.Context, r io.Reader, rules relfilter.Rules) io.Reader {
 							Name: stateValuesSearch,
 							Switch: fsm.Switch{
 								Trigger: []byte("VALUES"),
+								Delimiters: fsm.Delimiters{
+									L: []byte{' ', '\n'},
+									R: []byte{' ', '\n'},
+								},
 							},
 							DataHandler: nil,
 						},
