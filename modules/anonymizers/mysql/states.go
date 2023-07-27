@@ -23,4 +23,5 @@ var (
 	stateTableValuesEnd             = fsm.StateName("table values end")
 	stateTableValuesStringEnd       = fsm.StateName("table values string end")
 	stateValuesSearchKeyword        = fsm.StateName("values search key VALUES")
+	stateFieldsGenerated            = fsm.StateName("fields generated search")
 )
