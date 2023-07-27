@@ -116,8 +116,43 @@ func Init(ctx context.Context, r io.Reader, rules relfilter.Rules) io.Reader {
 						},
 					},
 				},
+				stateFieldsGenerated: {
+					NextStates: []fsm.NextState{
+						{
+							Name: stateFieldsDescriptionBlock,
+							Switch: fsm.Switch{
+								Trigger: []byte(","),
+								Delimiters: fsm.Delimiters{
+									R: []byte{'\n'},
+								},
+							},
+							DataHandler: nil,
+						},
+						{
+							Name: statefFieldsDescriptionBlockEnd,
+							Switch: fsm.Switch{
+								Trigger: []byte(")"),
+								Delimiters: fsm.Delimiters{
+									L: []byte{'\n'},
+								},
+							},
+							DataHandler: nil,
+						},
+					},
+				},
 				stateFieldsDescriptionNameTail: {
 					NextStates: []fsm.NextState{
+						{
+							Name: stateFieldsGenerated,
+							Switch: fsm.Switch{
+								Trigger: []byte("GENERATED"),
+								Delimiters: fsm.Delimiters{
+									L: []byte{' '},
+									R: []byte{' '},
+								},
+							},
+							DataHandler: dhPopTableLastFieldName,
+						},
 						{
 							Name: stateFieldsDescriptionBlock,
 							Switch: fsm.Switch{

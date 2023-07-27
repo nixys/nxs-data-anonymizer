@@ -24,6 +24,14 @@ func dhCreateTableFieldName(usrCtx any, deferred, token []byte) ([]byte, error) 
 	return append(deferred, token...), nil
 }
 
+func dhPopTableLastFieldName(usrCtx any, deferred, token []byte) ([]byte, error) {
+
+	filter := usrCtx.(*relfilter.Filter)
+	filter.ColumnPop()
+
+	return append(deferred, token...), nil
+}
+
 func dhInsertIntoTableName(usrCtx any, deferred, token []byte) ([]byte, error) {
 
 	filter := usrCtx.(*relfilter.Filter)
