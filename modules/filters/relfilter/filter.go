@@ -34,10 +34,11 @@ type Row struct {
 }
 
 type tableData struct {
-	name    string
-	columns map[string]int
-	values  []rowValue
-	uniques map[string]map[string]any
+	name           string
+	columns        map[string]int
+	columnsOrdered []string
+	values         []rowValue
+	uniques        map[string]map[string]any
 }
 
 type rowValue struct {
@@ -56,10 +57,11 @@ func Init(rules Rules) *Filter {
 // TableCreate creates new data set for table `name`
 func (filter *Filter) TableCreate(name string) {
 	filter.tableData = tableData{
-		name:    name,
-		columns: make(map[string]int),
-		uniques: make(map[string]map[string]any),
-		values:  []rowValue{},
+		name:           name,
+		columns:        make(map[string]int),
+		columnsOrdered: make([]string, 0),
+		uniques:        make(map[string]map[string]any),
+		values:         []rowValue{},
 	}
 }
 
@@ -70,6 +72,18 @@ func (filter *Filter) TableNameGet() string {
 // ColumnAdd adds new column into current data set
 func (filter *Filter) ColumnAdd(name string) {
 	filter.tableData.columns[name] = len(filter.tableData.columns)
+	filter.tableData.columnsOrdered = append(filter.tableData.columnsOrdered, name)
+}
+
+func (filter *Filter) ColumnPop() {
+	lastColumnIdx := len(filter.tableData.columnsOrdered) - 1
+	if lastColumnIdx < 0 {
+		return
+	}
+
+	lastColumn := filter.tableData.columnsOrdered[lastColumnIdx]
+	delete(filter.tableData.columns, lastColumn)
+	filter.tableData.columnsOrdered = filter.tableData.columnsOrdered[:lastColumnIdx]
 }
 
 func (filter *Filter) ValueByteAdd(b []byte) {
