@@ -1,3 +1,5 @@
+![photo_2023-07-28_15-28-52](https://github.com/nixys/nxs-data-anonymizer/assets/27485608/165a90a0-929f-460b-8dbd-2903c0d91f36)
+
 # nxs-data-anonymizer
 
 ## Introduction
