@@ -60,8 +60,9 @@ func (c *Ctx) Init(opts appctx.CustomContextFuncOpts) (appctx.CfgData, error) {
 				cc := make(map[string]relfilter.ColumnRule)
 				for c, cf := range f.Columns {
 					cc[c] = relfilter.ColumnRule{
-						Value:  cf.Value,
-						Unique: cf.Unique,
+						Value:    cf.Value,
+						Unique:   cf.Unique,
+						AutoNULL: cf.AutoNULL,
 					}
 				}
 				return cc

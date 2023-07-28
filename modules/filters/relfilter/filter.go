@@ -16,8 +16,9 @@ type TableRules struct {
 }
 
 type ColumnRule struct {
-	Value  string
-	Unique bool
+	Value    string
+	Unique   bool
+	AutoNULL bool
 }
 
 type Filter struct {
@@ -128,14 +129,20 @@ func (filter *Filter) Apply() error {
 
 				v, err := func() ([]byte, error) {
 
-					for i := 0; i < uniqueAttempts; i++ {
+					var err error
+					var v []byte
 
-						v, err := misc.TemplateExec(
-							c.Value,
-							td,
-						)
-						if err != nil {
-							return []byte{}, fmt.Errorf("value compile template: %w", err)
+					for i := 0; i < uniqueAttempts; i++ {
+						if c.AutoNULL && filter.tableData.values[id].T == ValueTypeNULL {
+							v = []byte(td.Values[cname])
+						} else {
+							v, err = misc.TemplateExec(
+								c.Value,
+								td,
+							)
+							if err != nil {
+								return []byte{}, fmt.Errorf("value compile template: %w", err)
+							}
 						}
 
 						v = bytes.ReplaceAll(v, []byte("\n"), []byte("\\n"))

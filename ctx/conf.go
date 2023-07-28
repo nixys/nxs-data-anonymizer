@@ -18,8 +18,9 @@ type filterConf struct {
 }
 
 type columnFilterConf struct {
-	Value  string `conf:"value"`
-	Unique bool   `conf:"unique"`
+	Value    string `conf:"value"`
+	Unique   bool   `conf:"unique"`
+	AutoNULL bool   `conf:"autonull"`
 }
 
 type mysqlConf struct {
