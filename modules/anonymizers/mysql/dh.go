@@ -3,42 +3,64 @@ package mysql_anonymize
 import (
 	"bytes"
 	"fmt"
-	"strconv"
 
 	"github.com/nixys/nxs-data-anonymizer/modules/filters/relfilter"
 )
 
 func dhCreateTableName(usrCtx any, deferred, token []byte) ([]byte, error) {
 
-	filter := usrCtx.(*relfilter.Filter)
-	filter.TableCreate(string(deferred))
+	uctx := usrCtx.(*userCtx)
+	uctx.filter.TableCreate(string(deferred))
 
 	return append(deferred, token...), nil
 }
 
 func dhCreateTableFieldName(usrCtx any, deferred, token []byte) ([]byte, error) {
 
-	filter := usrCtx.(*relfilter.Filter)
-	filter.ColumnAdd(string(deferred))
+	uctx := usrCtx.(*userCtx)
+	uctx.column.name = string(deferred)
 
 	return append(deferred, token...), nil
 }
 
-func dhPopTableLastFieldName(usrCtx any, deferred, token []byte) ([]byte, error) {
+func dhCreateTableColumnTypeAdd(usrCtx any, deferred, token []byte) ([]byte, error) {
 
-	filter := usrCtx.(*relfilter.Filter)
-	filter.ColumnPop()
+	uctx := usrCtx.(*userCtx)
+
+	switch string(token) {
+	case "INT":
+		uctx.column.columnType = relfilter.ColumnTypeInt
+	case "VARCHAR":
+		uctx.column.columnType = relfilter.ColumnTypeString
+	case "VARBINARY":
+		uctx.column.columnType = relfilter.ColumnTypeBinary
+	case "GENERATED":
+		uctx.column.isSkip = true
+	}
+
+	return append(deferred, token...), nil
+}
+
+func dhCreateTableColumnAdd(usrCtx any, deferred, token []byte) ([]byte, error) {
+
+	uctx := usrCtx.(*userCtx)
+
+	if uctx.column.isSkip == false {
+		uctx.filter.ColumnAdd(uctx.column.name, uctx.column.columnType)
+	}
+
+	uctx.column = userColumnCtx{}
 
 	return append(deferred, token...), nil
 }
 
 func dhInsertIntoTableName(usrCtx any, deferred, token []byte) ([]byte, error) {
 
-	filter := usrCtx.(*relfilter.Filter)
+	uctx := usrCtx.(*userCtx)
 
 	// Check insert into table name
-	if bytes.Compare([]byte(filter.TableNameGet()), deferred) != 0 {
-		return append(deferred, token...), fmt.Errorf("`create` and `insert into` table names are mismatch (create table: '%s', insert into table: '%s')", filter.TableNameGet(), string(deferred))
+	if bytes.Compare([]byte(uctx.filter.TableNameGet()), deferred) != 0 {
+		return append(deferred, token...), fmt.Errorf("`create` and `insert into` table names are mismatch (create table: '%s', insert into table: '%s')", uctx.filter.TableNameGet(), string(deferred))
 	}
 
 	return append(deferred, token...), nil
@@ -46,50 +68,61 @@ func dhInsertIntoTableName(usrCtx any, deferred, token []byte) ([]byte, error) {
 
 func dhCreateTableValues(usrCtx any, deferred, token []byte) ([]byte, error) {
 
-	filter := usrCtx.(*relfilter.Filter)
-	valuePut(filter, deferred, token)
+	uctx := usrCtx.(*userCtx)
+
+	if bytes.Compare(deferred, []byte("NULL")) == 0 {
+		uctx.filter.ValueAdd(nil)
+	} else {
+		uctx.filter.ValueAdd(deferred)
+	}
 
 	return []byte{}, nil
 }
 
-func dhCreateTableValuesBinary(usrCtx any, deferred, token []byte) ([]byte, error) {
+func dhCreateTableValuesString(usrCtx any, deferred, token []byte) ([]byte, error) {
 
-	filter := usrCtx.(*relfilter.Filter)
-	filter.ValueBinaryAdd(deferred)
+	uctx := usrCtx.(*userCtx)
+
+	uctx.filter.ValueAdd(deferred)
 
 	return []byte{}, nil
 }
 
 func dhCreateTableValuesEnd(usrCtx any, deferred, token []byte) ([]byte, error) {
 
-	filter := usrCtx.(*relfilter.Filter)
-	valuePut(filter, deferred, token)
+	uctx := usrCtx.(*userCtx)
+
+	if bytes.Compare(deferred, []byte("NULL")) == 0 {
+		uctx.filter.ValueAdd(nil)
+	} else {
+		uctx.filter.ValueAdd(deferred)
+	}
 
 	// Apply filter for row
-	if err := filter.Apply(); err != nil {
+	if err := uctx.filter.Apply(); err != nil {
 		return []byte{}, err
 	}
 
-	return rowDataGen(filter), nil
+	return rowDataGen(uctx.filter), nil
 }
 
 func dhCreateTableValuesStringEnd(usrCtx any, deferred, token []byte) ([]byte, error) {
 
-	filter := usrCtx.(*relfilter.Filter)
+	uctx := usrCtx.(*userCtx)
 
 	// Apply filter for row
-	if err := filter.Apply(); err != nil {
+	if err := uctx.filter.Apply(); err != nil {
 		return []byte{}, err
 	}
 
-	return rowDataGen(filter), nil
+	return rowDataGen(uctx.filter), nil
 }
 
 func rowDataGen(filter *relfilter.Filter) []byte {
 
 	var out string
 
-	row := filter.RowPull()
+	row := filter.ValuePop()
 
 	for i, v := range row.Values {
 
@@ -97,29 +130,19 @@ func rowDataGen(filter *relfilter.Filter) []byte {
 			out += ","
 		}
 
-		switch v.T {
-		case relfilter.ValueTypeString:
-			out += fmt.Sprintf("'%s'", v.V)
-		case relfilter.ValueTypeBinary:
-			out += fmt.Sprintf("_binary '%s'", v.V)
-		default:
-			out += fmt.Sprintf("%s", v.V)
+		if v.V == nil {
+			out += "NULL"
+		} else {
+			switch filter.ColumnTypeGet(i) {
+			case relfilter.ColumnTypeString:
+				out += fmt.Sprintf("'%s'", v.V)
+			case relfilter.ColumnTypeBinary:
+				out += fmt.Sprintf("_binary '%s'", v.V)
+			default:
+				out += fmt.Sprintf("%s", v.V)
+			}
 		}
 	}
 
 	return []byte(fmt.Sprintf("(%s)", out))
-}
-
-func valuePut(filter *relfilter.Filter, deferred, token []byte) {
-	if bytes.Compare(token, []byte{'\''}) == 0 {
-		filter.ValueStringAdd(deferred)
-	} else if bytes.Compare(deferred, []byte("NULL")) == 0 {
-		filter.ValueNULLAdd(deferred)
-	} else if _, b := strconv.ParseInt(string(deferred), 10, 64); b == nil {
-		filter.ValueIntAdd(deferred)
-	} else if _, b := strconv.ParseFloat(string(deferred), 10); b == nil {
-		filter.ValueFloatAdd(deferred)
-	} else {
-		filter.ValueByteAdd(deferred)
-	}
 }

@@ -9,13 +9,30 @@ import (
 	fsm "github.com/nixys/nxs-go-fsm"
 )
 
+type userCtx struct {
+	filter *relfilter.Filter
+	column userColumnCtx
+}
+
+type userColumnCtx struct {
+	name       string
+	columnType relfilter.ColumnType
+	isSkip     bool
+}
+
+func userCtxInit(rules relfilter.Rules) *userCtx {
+	return &userCtx{
+		filter: relfilter.Init(rules),
+	}
+}
+
 func Init(ctx context.Context, r io.Reader, rules relfilter.Rules) io.Reader {
 
 	return fsm.Init(
 		r,
 		fsm.Description{
 			Ctx:       ctx,
-			UserCtx:   relfilter.Init(rules),
+			UserCtx:   userCtxInit(rules),
 			InitState: stateCreateSearch,
 			States: map[fsm.StateName]fsm.State{
 
@@ -116,34 +133,10 @@ func Init(ctx context.Context, r io.Reader, rules relfilter.Rules) io.Reader {
 						},
 					},
 				},
-				stateFieldsGenerated: {
-					NextStates: []fsm.NextState{
-						{
-							Name: stateFieldsDescriptionBlock,
-							Switch: fsm.Switch{
-								Trigger: []byte(","),
-								Delimiters: fsm.Delimiters{
-									R: []byte{'\n'},
-								},
-							},
-							DataHandler: nil,
-						},
-						{
-							Name: statefFieldsDescriptionBlockEnd,
-							Switch: fsm.Switch{
-								Trigger: []byte(")"),
-								Delimiters: fsm.Delimiters{
-									L: []byte{'\n'},
-								},
-							},
-							DataHandler: nil,
-						},
-					},
-				},
 				stateFieldsDescriptionNameTail: {
 					NextStates: []fsm.NextState{
 						{
-							Name: stateFieldsGenerated,
+							Name: stateFieldsDescriptionNameTail,
 							Switch: fsm.Switch{
 								Trigger: []byte("GENERATED"),
 								Delimiters: fsm.Delimiters{
@@ -151,7 +144,39 @@ func Init(ctx context.Context, r io.Reader, rules relfilter.Rules) io.Reader {
 									R: []byte{' '},
 								},
 							},
-							DataHandler: dhPopTableLastFieldName,
+							DataHandler: dhCreateTableColumnTypeAdd,
+						},
+
+						{
+							Name: stateFieldsDescriptionNameTail,
+							Switch: fsm.Switch{
+								Trigger: []byte("INT"),
+								Delimiters: fsm.Delimiters{
+									L: []byte{' '},
+									R: []byte{' '},
+								},
+							},
+							DataHandler: dhCreateTableColumnTypeAdd,
+						},
+						{
+							Name: stateFieldsDescriptionNameTail,
+							Switch: fsm.Switch{
+								Trigger: []byte("VARCHAR"),
+								Delimiters: fsm.Delimiters{
+									L: []byte{' '},
+								},
+							},
+							DataHandler: dhCreateTableColumnTypeAdd,
+						},
+						{
+							Name: stateFieldsDescriptionNameTail,
+							Switch: fsm.Switch{
+								Trigger: []byte("VARBINARY"),
+								Delimiters: fsm.Delimiters{
+									L: []byte{' '},
+								},
+							},
+							DataHandler: dhCreateTableColumnTypeAdd,
 						},
 						{
 							Name: stateFieldsDescriptionBlock,
@@ -161,7 +186,7 @@ func Init(ctx context.Context, r io.Reader, rules relfilter.Rules) io.Reader {
 									R: []byte{'\n'},
 								},
 							},
-							DataHandler: nil,
+							DataHandler: dhCreateTableColumnAdd,
 						},
 						{
 							Name: statefFieldsDescriptionBlockEnd,
@@ -171,7 +196,7 @@ func Init(ctx context.Context, r io.Reader, rules relfilter.Rules) io.Reader {
 									L: []byte{'\n'},
 								},
 							},
-							DataHandler: nil,
+							DataHandler: dhCreateTableColumnAdd,
 						},
 					},
 				},
@@ -302,13 +327,6 @@ func Init(ctx context.Context, r io.Reader, rules relfilter.Rules) io.Reader {
 							},
 							DataHandler: dhCreateTableValuesEnd,
 						},
-						{
-							Name: stateTableValuesBinary,
-							Switch: fsm.Switch{
-								Trigger: []byte("_binary '"),
-							},
-							DataHandler: fsm.DataHandlerGenericVoid,
-						},
 					},
 				},
 				stateTableValuesString: {
@@ -319,19 +337,7 @@ func Init(ctx context.Context, r io.Reader, rules relfilter.Rules) io.Reader {
 								Trigger: []byte("'"),
 								Escape:  true,
 							},
-							DataHandler: dhCreateTableValues,
-						},
-					},
-				},
-				stateTableValuesBinary: {
-					NextStates: []fsm.NextState{
-						{
-							Name: stateTableValuesStringEnd,
-							Switch: fsm.Switch{
-								Trigger: []byte("'"),
-								Escape:  true,
-							},
-							DataHandler: dhCreateTableValuesBinary,
+							DataHandler: dhCreateTableValuesString,
 						},
 					},
 				},

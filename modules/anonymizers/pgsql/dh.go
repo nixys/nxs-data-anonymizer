@@ -3,7 +3,6 @@ package pgsql_anonymize
 import (
 	"bytes"
 	"fmt"
-	"strconv"
 
 	"github.com/nixys/nxs-data-anonymizer/modules/filters/relfilter"
 )
@@ -23,7 +22,7 @@ func dhFieldName(usrCtx any, deferred, token []byte) ([]byte, error) {
 	fname := bytes.TrimSpace(deferred)
 
 	filter := usrCtx.(*relfilter.Filter)
-	filter.ColumnAdd(string(fname))
+	filter.ColumnAdd(string(fname), relfilter.ColumnTypeNone)
 
 	return append(deferred, token...), nil
 }
@@ -31,7 +30,7 @@ func dhFieldName(usrCtx any, deferred, token []byte) ([]byte, error) {
 func dhValue(usrCtx any, deferred, token []byte) ([]byte, error) {
 
 	filter := usrCtx.(*relfilter.Filter)
-	valuePut(filter, deferred, token)
+	filter.ValueAdd(deferred)
 
 	return []byte{}, nil
 }
@@ -39,7 +38,7 @@ func dhValue(usrCtx any, deferred, token []byte) ([]byte, error) {
 func dhValueEnd(usrCtx any, deferred, token []byte) ([]byte, error) {
 
 	filter := usrCtx.(*relfilter.Filter)
-	valuePut(filter, deferred, token)
+	filter.ValueAdd(deferred)
 
 	// Apply filter for row
 	if err := filter.Apply(); err != nil {
@@ -53,7 +52,7 @@ func rowDataGen(filter *relfilter.Filter) []byte {
 
 	var out string
 
-	row := filter.RowPull()
+	row := filter.ValuePop()
 
 	for i, v := range row.Values {
 
@@ -61,21 +60,8 @@ func rowDataGen(filter *relfilter.Filter) []byte {
 			out += "\t"
 		}
 
-		switch v.T {
-		default:
-			out += fmt.Sprintf("%s", v.V)
-		}
+		out += fmt.Sprintf("%s", v.V)
 	}
 
 	return []byte(fmt.Sprintf("%s\n", out))
-}
-
-func valuePut(filter *relfilter.Filter, deferred, token []byte) {
-	if _, b := strconv.ParseInt(string(deferred), 10, 64); b == nil {
-		filter.ValueIntAdd(deferred)
-	} else if _, b := strconv.ParseFloat(string(deferred), 10); b == nil {
-		filter.ValueFloatAdd(deferred)
-	} else {
-		filter.ValueStringAdd(deferred)
-	}
 }
