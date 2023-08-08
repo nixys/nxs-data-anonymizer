@@ -3,6 +3,7 @@ package mysql_anonymize
 import (
 	"context"
 	"io"
+	"strings"
 
 	"github.com/nixys/nxs-data-anonymizer/modules/filters/relfilter"
 
@@ -18,6 +19,51 @@ type userColumnCtx struct {
 	name       string
 	columnType relfilter.ColumnType
 	isSkip     bool
+}
+
+var typeKeys = map[string]relfilter.ColumnType{
+
+	// Special
+	"generated": relfilter.ColumnTypeNone,
+
+	// Strings
+	"char":       relfilter.ColumnTypeString,
+	"varchar":    relfilter.ColumnTypeString,
+	"tinytext":   relfilter.ColumnTypeString,
+	"text":       relfilter.ColumnTypeString,
+	"mediumtext": relfilter.ColumnTypeString,
+	"longtext":   relfilter.ColumnTypeString,
+	"enum":       relfilter.ColumnTypeString,
+	"set":        relfilter.ColumnTypeString,
+	"date":       relfilter.ColumnTypeString,
+	"datetime":   relfilter.ColumnTypeString,
+	"timestamp":  relfilter.ColumnTypeString,
+	"time":       relfilter.ColumnTypeString,
+	"year":       relfilter.ColumnTypeString,
+
+	// Numeric
+	"bit":              relfilter.ColumnTypeNum,
+	"bool":             relfilter.ColumnTypeNum,
+	"boolean":          relfilter.ColumnTypeNum,
+	"tinyint":          relfilter.ColumnTypeNum,
+	"smallint":         relfilter.ColumnTypeNum,
+	"mediumint":        relfilter.ColumnTypeNum,
+	"int":              relfilter.ColumnTypeNum,
+	"integer":          relfilter.ColumnTypeNum,
+	"bigint":           relfilter.ColumnTypeNum,
+	"float":            relfilter.ColumnTypeNum,
+	"double":           relfilter.ColumnTypeNum,
+	"double precision": relfilter.ColumnTypeNum,
+	"decimal":          relfilter.ColumnTypeNum,
+	"dec":              relfilter.ColumnTypeNum,
+
+	// Binary
+	"binary":     relfilter.ColumnTypeBinary,
+	"varbinary":  relfilter.ColumnTypeBinary,
+	"tinyblob":   relfilter.ColumnTypeBinary,
+	"blob":       relfilter.ColumnTypeBinary,
+	"mediumblob": relfilter.ColumnTypeBinary,
+	"longblob":   relfilter.ColumnTypeBinary,
 }
 
 func userCtxInit(rules relfilter.Rules) *userCtx {
@@ -103,7 +149,7 @@ func Init(ctx context.Context, r io.Reader, rules relfilter.Rules) io.Reader {
 					NextStates: []fsm.NextState{
 						{
 							// Skip table keys description
-							Name: stateFieldsDescriptionNameTail,
+							Name: stateFieldDescriptionTailSkip,
 							Switch: fsm.Switch{
 								Trigger: []byte("KEY"),
 								Delimiters: fsm.Delimiters{
@@ -122,6 +168,30 @@ func Init(ctx context.Context, r io.Reader, rules relfilter.Rules) io.Reader {
 						},
 					},
 				},
+				stateFieldDescriptionTailSkip: {
+					NextStates: []fsm.NextState{
+						{
+							Name: stateFieldsDescriptionBlock,
+							Switch: fsm.Switch{
+								Trigger: []byte(","),
+								Delimiters: fsm.Delimiters{
+									R: []byte{'\n'},
+								},
+							},
+							DataHandler: nil,
+						},
+						{
+							Name: statefFieldsDescriptionBlockEnd,
+							Switch: fsm.Switch{
+								Trigger: []byte(")"),
+								Delimiters: fsm.Delimiters{
+									L: []byte{'\n'},
+								},
+							},
+							DataHandler: nil,
+						},
+					},
+				},
 				stateFieldsDescriptionName: {
 					NextStates: []fsm.NextState{
 						{
@@ -134,51 +204,34 @@ func Init(ctx context.Context, r io.Reader, rules relfilter.Rules) io.Reader {
 					},
 				},
 				stateFieldsDescriptionNameTail: {
-					NextStates: []fsm.NextState{
-						{
-							Name: stateFieldsDescriptionNameTail,
-							Switch: fsm.Switch{
-								Trigger: []byte("GENERATED"),
-								Delimiters: fsm.Delimiters{
-									L: []byte{' '},
-									R: []byte{' '},
-								},
-							},
-							DataHandler: dhCreateTableColumnTypeAdd,
-						},
+					NextStates: func() []fsm.NextState {
 
-						{
-							Name: stateFieldsDescriptionNameTail,
-							Switch: fsm.Switch{
-								Trigger: []byte("INT"),
-								Delimiters: fsm.Delimiters{
-									L: []byte{' '},
-									R: []byte{' '},
-								},
-							},
-							DataHandler: dhCreateTableColumnTypeAdd,
-						},
-						{
-							Name: stateFieldsDescriptionNameTail,
-							Switch: fsm.Switch{
-								Trigger: []byte("VARCHAR"),
-								Delimiters: fsm.Delimiters{
-									L: []byte{' '},
-								},
-							},
-							DataHandler: dhCreateTableColumnTypeAdd,
-						},
-						{
-							Name: stateFieldsDescriptionNameTail,
-							Switch: fsm.Switch{
-								Trigger: []byte("VARBINARY"),
-								Delimiters: fsm.Delimiters{
-									L: []byte{' '},
-								},
-							},
-							DataHandler: dhCreateTableColumnTypeAdd,
-						},
-						{
+						var nss []fsm.NextState
+
+						for t := range typeKeys {
+							for i := 0; i < 2; i++ {
+
+								s := t
+								if i == 1 {
+									s = strings.ToUpper(t)
+								}
+
+								nss = append(nss, fsm.NextState{
+									Name: stateFieldsDescriptionNameTail,
+									Switch: fsm.Switch{
+										Trigger: []byte(s),
+										Delimiters: fsm.Delimiters{
+											L: []byte{' '},
+											R: []byte{' ', '(', ',', '\n'},
+										},
+									},
+									DataHandler: dhCreateTableColumnTypeAdd,
+								})
+							}
+						}
+
+						// Additional states
+						nss = append(nss, fsm.NextState{
 							Name: stateFieldsDescriptionBlock,
 							Switch: fsm.Switch{
 								Trigger: []byte(","),
@@ -187,8 +240,8 @@ func Init(ctx context.Context, r io.Reader, rules relfilter.Rules) io.Reader {
 								},
 							},
 							DataHandler: dhCreateTableColumnAdd,
-						},
-						{
+						})
+						nss = append(nss, fsm.NextState{
 							Name: statefFieldsDescriptionBlockEnd,
 							Switch: fsm.Switch{
 								Trigger: []byte(")"),
@@ -197,8 +250,10 @@ func Init(ctx context.Context, r io.Reader, rules relfilter.Rules) io.Reader {
 								},
 							},
 							DataHandler: dhCreateTableColumnAdd,
-						},
-					},
+						})
+
+						return nss
+					}(),
 				},
 				statefFieldsDescriptionBlockEnd: {
 					NextStates: []fsm.NextState{

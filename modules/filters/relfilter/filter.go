@@ -111,6 +111,10 @@ func (filter *Filter) Apply() error {
 			Values:    make(map[string][]byte),
 		}
 
+		if len(filter.tableData.columns.cc) > len(filter.tableData.values) {
+			return fmt.Errorf("mismatch count of columns and values for table '%s'", tname)
+		}
+
 		for i, d := range filter.tableData.columns.cc {
 			td.Values[d.n] = filter.tableData.values[i].V
 		}
