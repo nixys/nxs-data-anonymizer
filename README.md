@@ -159,7 +159,7 @@ Filters description for specified table.
 
 | Option        | Type   | Required | Default value | Description                                                      |
 |---            | :---:  | :---:    | :---:         |---                                                               |
-| `value`       | String | No       | -             | The value to be used to replace at every cell in specified column. This value may be either fixed value or Go template with the [Sprig template library's](https://masterminds.github.io/sprig/) functions. You may also use values of other columns in the rules for same row (with values before substitutions) |
+| `value`       | String | No       | -             | The value to be used to replace at every cell in specified column. This value may be either fixed value or Go template with the [Sprig template library's](https://masterminds.github.io/sprig/) functions. You may also use values of other columns in the rules for same row (with values before substitutions).</br></br>Additional filter functions:</br>- `null`: set a field value to `NULL`</br>- `isNull`: compare a field value with `NULL`|
 | `unique`      | Bool   | No       | `false`       | If true checks the generated value for cell is unique whole the column |
 
 #### Example
