@@ -7,7 +7,7 @@ import (
 	"github.com/Masterminds/sprig/v3"
 )
 
-var null = []byte("::NULL::")
+var null = "::NULL::"
 
 type TemplateData struct {
 	TableName string
@@ -19,9 +19,21 @@ func TemplateExec(tpl string, d TemplateData) ([]byte, error) {
 
 	var b bytes.Buffer
 
+	type tplData struct {
+		TableName string
+		Values    map[string]string
+	}
+
+	td := tplData{
+		TableName: d.TableName,
+		Values:    make(map[string]string),
+	}
+
 	for k, v := range d.Values {
 		if v == nil {
-			d.Values[k] = null
+			td.Values[k] = null
+		} else {
+			td.Values[k] = string(v)
 		}
 	}
 
@@ -33,10 +45,10 @@ func TemplateExec(tpl string, d TemplateData) ([]byte, error) {
 
 		// Add additional functions
 		t["null"] = func() string {
-			return string(null)
+			return null
 		}
-		t["isNull"] = func(v []byte) bool {
-			if bytes.Compare(v, null) == 0 {
+		t["isNull"] = func(v string) bool {
+			if v == null {
 				return true
 			}
 			return false
@@ -48,7 +60,7 @@ func TemplateExec(tpl string, d TemplateData) ([]byte, error) {
 		return []byte{}, err
 	}
 
-	err = t.Execute(&b, d)
+	err = t.Execute(&b, td)
 	if err != nil {
 		return []byte{}, err
 	}
@@ -59,7 +71,7 @@ func TemplateExec(tpl string, d TemplateData) ([]byte, error) {
 	}
 
 	// Return nil if buffer is NULL (with special key)
-	if bytes.Compare(b.Bytes(), null) == 0 {
+	if bytes.Compare(b.Bytes(), []byte(null)) == 0 {
 		return nil, nil
 	}
 

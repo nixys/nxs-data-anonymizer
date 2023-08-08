@@ -16,7 +16,7 @@ const (
 	ColumnTypeNone   ColumnType = "none"
 	ColumnTypeString ColumnType = "string"
 	ColumnTypeBinary ColumnType = "binary"
-	ColumnTypeInt    ColumnType = "int"
+	ColumnTypeNum    ColumnType = "numeric"
 )
 
 func (c ColumnType) String() string {

@@ -3,6 +3,7 @@ package mysql_anonymize
 import (
 	"bytes"
 	"fmt"
+	"strings"
 
 	"github.com/nixys/nxs-data-anonymizer/modules/filters/relfilter"
 )
@@ -27,15 +28,22 @@ func dhCreateTableColumnTypeAdd(usrCtx any, deferred, token []byte) ([]byte, err
 
 	uctx := usrCtx.(*userCtx)
 
-	switch string(token) {
-	case "INT":
-		uctx.column.columnType = relfilter.ColumnTypeInt
-	case "VARCHAR":
-		uctx.column.columnType = relfilter.ColumnTypeString
-	case "VARBINARY":
-		uctx.column.columnType = relfilter.ColumnTypeBinary
-	case "GENERATED":
-		uctx.column.isSkip = true
+	for k, v := range typeKeys {
+		if k == "generated" {
+			if k == string(token) || strings.ToUpper(k) == string(token) {
+				uctx.column.isSkip = true
+				break
+			}
+		} else {
+			if k == string(token) || strings.ToUpper(k) == string(token) {
+				uctx.column.columnType = v
+				break
+			}
+		}
+	}
+
+	if uctx.column.columnType == "" {
+		fmt.Println("token:", token)
 	}
 
 	return append(deferred, token...), nil
