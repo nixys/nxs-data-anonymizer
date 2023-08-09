@@ -40,6 +40,7 @@ var typeKeys = map[string]relfilter.ColumnType{
 	"timestamp":  relfilter.ColumnTypeString,
 	"time":       relfilter.ColumnTypeString,
 	"year":       relfilter.ColumnTypeString,
+	"json":       relfilter.ColumnTypeString,
 
 	// Numeric
 	"bit":              relfilter.ColumnTypeNum,
