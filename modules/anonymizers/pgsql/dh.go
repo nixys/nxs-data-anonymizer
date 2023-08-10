@@ -30,7 +30,12 @@ func dhFieldName(usrCtx any, deferred, token []byte) ([]byte, error) {
 func dhValue(usrCtx any, deferred, token []byte) ([]byte, error) {
 
 	filter := usrCtx.(*relfilter.Filter)
-	filter.ValueAdd(deferred)
+
+	if bytes.Compare(deferred, []byte("\\N")) == 0 {
+		filter.ValueAdd(nil)
+	} else {
+		filter.ValueAdd(deferred)
+	}
 
 	return []byte{}, nil
 }
@@ -38,7 +43,12 @@ func dhValue(usrCtx any, deferred, token []byte) ([]byte, error) {
 func dhValueEnd(usrCtx any, deferred, token []byte) ([]byte, error) {
 
 	filter := usrCtx.(*relfilter.Filter)
-	filter.ValueAdd(deferred)
+
+	if bytes.Compare(deferred, []byte("\\N")) == 0 {
+		filter.ValueAdd(nil)
+	} else {
+		filter.ValueAdd(deferred)
+	}
 
 	// Apply filter for row
 	if err := filter.Apply(); err != nil {
@@ -60,7 +70,11 @@ func rowDataGen(filter *relfilter.Filter) []byte {
 			out += "\t"
 		}
 
-		out += fmt.Sprintf("%s", v.V)
+		if v.V == nil {
+			out += "\\N"
+		} else {
+			out += fmt.Sprintf("%s", v.V)
+		}
 	}
 
 	return []byte(fmt.Sprintf("%s\n", out))
