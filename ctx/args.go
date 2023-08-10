@@ -12,6 +12,8 @@ const (
 	confPathDefault = "/nxs-data-anonymizer.conf"
 )
 
+var version string
+
 // Args contains arguments value read from command line
 type Args struct {
 	ConfigPath string
@@ -49,19 +51,19 @@ func ArgsRead() Args {
 		"conf",
 		'c',
 		"",
-		"Config file path")
+		fmt.Sprintf("Config file path. Default path: %s", confPathDefault))
 
 	input := args.StringLong(
 		"input",
 		'i',
 		"",
-		"Input file")
+		"Input file. If not set `stdin` is used")
 
 	output := args.StringLong(
 		"output",
 		'o',
 		"",
-		"Output file")
+		"Output file. If not set `stdout` is used")
 
 	dbType := args.EnumLong(
 		"type",
@@ -71,7 +73,7 @@ func ArgsRead() Args {
 			string(DBTypePgSQL),
 		},
 		"",
-		"Database type you need to operate",
+		fmt.Sprintf("Database type you need to operate. Values `%s` or `%s` are available", DBTypePgSQL, DBTypeMySQL),
 	)
 
 	cleanup := args.BoolLong(
@@ -144,7 +146,7 @@ func argsHelp(args *getopt.Set) {
 	
 Additional description
 
-  Just a sample.
+  Tool for anonymizing PostgreSQL and MySQL databases' dump
 `
 
 	args.PrintUsage(os.Stdout)
@@ -152,5 +154,5 @@ Additional description
 }
 
 func argsVersion() {
-	fmt.Println("1.0")
+	fmt.Println(version)
 }
