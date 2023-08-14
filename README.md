@@ -99,7 +99,7 @@ This section contains a description of CI/CD variables used in GitLab CI job sam
 
 | Variable | Description |
 | :---: | :---: |
-| `S3CMD_CFG` | S3 storage config |
+|`S3CMD_CFG` | S3 storage config |
 |`PG_SCHEMA`| PgSQL schema |
 |`PG_DATABASE`|PgSQL database name|
 
@@ -122,7 +122,98 @@ This section contains a description of CI/CD variables used in GitLab CI job sam
 
 #### GitHub Actions
 
-_Comming soon ..._
+This section describes how to integrate nxs-data-anonymizer into your GitHub Actions. You may add jobs presented below into your `.github` workflows and adjust it for yourself.
+
+##### Job: anonymize prod
+
+Job described in this section is able to perform the following tasks:
+- Run when special tag is set
+- Create a `production` database dump, anonymize and upload it into s3 bucket
+
+```yaml
+on:
+  push:
+    tags:
+    - v*.*
+
+jobs:
+  anonymize:
+    runs-on: ubuntu-latest
+    container:
+      image: nixyslab/nxs-data-anonymizer:latest
+      env:
+        PG_HOST: ${{ secrets.PG_HOST_PROD }}
+        PG_USER: ${{ secrets.PG_USER_PROD }}
+        PGPASSWORD: ${{ secrets.PG_PASS_PROD }}
+        PG_SCHEMA: ${{ secrets.PG_SCHEMA }}
+        PG_DATABASE: ${{ secrets.PG_DATABASE }}
+    steps:
+    - name: Create services configs
+      run: |
+        echo "${{ secrets.S3CMD_CFG }}" > ~/.s3cmd
+        echo "${{ secrets.NXS_DA_CFG }}" > /nxs-data-anonymizer.conf
+    - name: Anonymize
+      run: |
+        pg_dump -h ${PG_HOST} -U ${PG_USER} --schema=${PG_SCHEMA} ${PG_DATABASE} | /nxs-data-anonymizer -t pgsql -c /nxs-data-anonymizer.conf | gzip | s3cmd put - s3://bucket/anondump.sql.gz
+```
+
+##### Job: update stage
+
+Job described in this section deals with the following:
+- Manual job
+- Download the anonymized dump from s3 bucket and load into `stage` database
+
+```yaml
+on: workflow_dispatch
+
+jobs:
+  restore-stage:
+    runs-on: ubuntu-latest
+    container:
+      image: nixyslab/nxs-data-anonymizer:latest
+      env:
+        PG_HOST: ${{ secrets.PG_HOST_STAGE }}
+        PG_USER: ${{ secrets.PG_USER_STAGE }}
+        PGPASSWORD: ${{ secrets.PG_PASS_STAGE }}
+        PG_SCHEMA: ${{ secrets.PG_SCHEMA }}
+        PG_DATABASE: ${{ secrets.PG_DATABASE }}
+    steps:
+    - name: Create services configs
+      run: |
+        echo "${{ secrets.S3CMD_CFG }}" > ~/.s3cmd
+    - name: Restore
+      run: |
+        s3cmd --no-progress --quiet get s3://bucket/anondump.sql.gz - | gunzip | psql -h ${PG_HOST} -U ${PG_USER} --schema=${PG_SCHEMA} ${PG_DATABASE}
+```
+
+##### GitHub Actions secrets
+
+This section contains a description of secrets used in GitHub Actions job samples above.
+
+###### General
+
+| Variable | Description |
+| :---: | :---: |
+|`S3CMD_CFG` | S3 storage config |
+|`PG_SCHEMA`| PgSQL schema |
+|`PG_DATABASE`|PgSQL database name|
+
+###### Production
+
+| Variable | Description |
+| :---: | :---: |
+|`NXS_DA_CFG`|nxs-data-anonymizer config|
+|`PG_HOST_PROD` |PgSQL host|
+|`PG_USER_PROD`|PgSQL user|
+|`PG_PASS_PROD`|PgSQL password|
+
+###### Stage
+
+| Variable | Description |
+| :---: | :---: |
+|`PG_HOST_STAGE`|PgSQL host|
+|`PG_USER_STAGE`|PgSQL user|
+|`PG_PASS_STAGE`|PgSQL password|
 
 ### Settings
 
