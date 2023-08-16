@@ -28,11 +28,12 @@ jobs:
       with:
         go-version: 1.19
 
-    - name: Set version
-      run: V=${{ github.ref_name }} && VT="${V#v}" && sed "s@APP_VERSION@$VT@" misc/version.go.in > misc/version.go
+    - name: Get version
+      id: get_version
+      uses: battila7/get-version-action@v2
 
     - name: Build
-      run: GOOS=linux GOARCH=${{ matrix.TARGET }} CGO_ENABLED=0 go build -ldflags="-s -w" -v -o nxs-data-anonymizer
+      run: GOOS=linux GOARCH=${{ matrix.TARGET }} CGO_ENABLED=0 go build -ldflags="-s -w -X github.com/nixys/nxs-data-anonymizer/ctx.version=${{ steps.get_version.outputs.version-without-v }}" -v -o nxs-data-anonymizer
 
     - name: Compress
       uses: a7ul/tar-action@v1.1.2
@@ -66,8 +67,9 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v3
 
-    - name: Set app version
-      run: V=${{ github.ref_name }} && VT="${V#v}" && sed "s@APP_VERSION@$VT@" misc/version.go.in > misc/version.go
+    - name: Get version
+      id: get_version
+      uses: battila7/get-version-action@v2
 
     - name: Login to Registry Hub
       uses: docker/login-action@v2
@@ -92,3 +94,5 @@ jobs:
         file: .docker/Dockerfile
         push: true
         tags: ${{ steps.meta-app.outputs.tags }}
+        build-args: APP_VERSION=${{ steps.get_version.outputs.version-without-v }}"
+
