@@ -19,6 +19,16 @@ func main() {
 	// Read command line arguments
 	args := ctx.ArgsRead()
 
+	var lf logrus.Formatter
+	switch args.LogFormat {
+	case ctx.LogFormatPlain:
+		lf = nil
+	case ctx.LogFormatJSON:
+		lf = &logrus.JSONFormatter{}
+	default:
+		lf = &logrus.JSONFormatter{}
+	}
+
 	// Init appctx
 	appCtx, err := appctx.ContextInit(appctx.Settings{
 		CustomContext:    &ctx.Ctx{},
@@ -27,7 +37,7 @@ func main() {
 		TermSignals:      []os.Signal{syscall.SIGTERM, syscall.SIGINT},
 		ReloadSignals:    []os.Signal{syscall.SIGHUP},
 		LogrotateSignals: []os.Signal{syscall.SIGUSR1},
-		LogFormatter:     &logrus.JSONFormatter{},
+		LogFormatter:     lf,
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)

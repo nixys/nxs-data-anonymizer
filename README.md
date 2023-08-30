@@ -229,6 +229,7 @@ Default configuration file path: `/nxs-data-anonymizer.conf`. The file is repres
 | `--version`      | `-v` | No   | No    |  -      | Show program version |
 | `--conf`      | `-c` | No   | Yes    |  `/nxs-data-anonymizer.conf`      | Configuration file path |
 | `--input`      | `-i` | No   | Yes    |  -     | File to read data from. If not specified `stdin` will be used |
+| `--log-format` | `-l` | No   | Yes    |  `json`     | Log file format. You are available to use either `json` or `plain` value |
 | `--output`      | `-o` | No   | Yes    |  -     | File to write data to. If not specified `stdout` will be used |
 | `--type`      | `-t` | Yes   | Yes    |  -     | Database dump file type. Available values: `pgsql`, `mysql` |
 

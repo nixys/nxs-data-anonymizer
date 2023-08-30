@@ -17,6 +17,7 @@ var version string
 // Args contains arguments value read from command line
 type Args struct {
 	ConfigPath string
+	LogFormat  LogFormat
 	Input      io.Reader
 	Output     io.Writer
 	Cleanup    bool
@@ -28,6 +29,13 @@ type DBType string
 const (
 	DBTypeMySQL DBType = "mysql"
 	DBTypePgSQL DBType = "pgsql"
+)
+
+type LogFormat string
+
+const (
+	LogFormatJSON  LogFormat = "json"
+	LogFormatPlain LogFormat = "plain"
 )
 
 // ArgsRead reads arguments from command line
@@ -59,6 +67,17 @@ func ArgsRead() Args {
 		"",
 		"Input file. If not set `stdin` is used")
 
+	logformat := args.EnumLong(
+		"log-format",
+		'l',
+		[]string{
+			string(LogFormatJSON),
+			string(LogFormatPlain),
+		},
+		string(LogFormatJSON),
+		fmt.Sprintf("Log file format. Values `%s` or `%s` are available", LogFormatJSON, LogFormatPlain),
+	)
+
 	output := args.StringLong(
 		"output",
 		'o',
@@ -79,7 +98,7 @@ func ArgsRead() Args {
 	cleanup := args.BoolLong(
 		"cleanup",
 		'C',
-		"Clean up deastination database")
+		"Clean up deastination database (experimental). Available only for MySQL")
 
 	args.Parse(os.Args)
 
@@ -129,6 +148,7 @@ func ArgsRead() Args {
 	}
 
 	a.Cleanup = *cleanup
+	a.LogFormat = LogFormat(*logformat)
 
 	if args.IsSet("type") == true {
 		a.DBType = DBType(*dbType)
