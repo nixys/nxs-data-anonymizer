@@ -4,6 +4,7 @@ go 1.19
 
 require (
 	github.com/Masterminds/sprig/v3 v3.2.3
+	github.com/docker/go-units v0.5.0
 	github.com/go-sql-driver/mysql v1.7.1
 	github.com/nixys/nxs-go-appctx/v2 v2.3.0
 	github.com/nixys/nxs-go-conf v1.1.0

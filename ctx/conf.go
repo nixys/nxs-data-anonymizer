@@ -8,9 +8,14 @@ type confOpts struct {
 	LogFile  string `conf:"logfile" conf_extraopts:"default=stderr"`
 	LogLevel string `conf:"loglevel" conf_extraopts:"default=info"`
 
-	Filters map[string]filterConf `conf:"filters"`
+	Progress progressConf          `conf:"progress"`
+	Filters  map[string]filterConf `conf:"filters"`
+	MySQL    *mysqlConf            `conf:"mysql"`
+}
 
-	MySQL *mysqlConf `conf:"mysql"`
+type progressConf struct {
+	Rhythm   string `conf:"rhythm" conf_extraopts:"default=0s"`
+	Humanize bool   `conf:"humanize"`
 }
 
 type filterConf struct {

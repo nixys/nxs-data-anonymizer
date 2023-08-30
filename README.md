@@ -238,7 +238,15 @@ Default configuration file path: `/nxs-data-anonymizer.conf`. The file is repres
 |---             | :---:  | :---:    | :---:         |---                                                               |
 | `logfile`      | String | No       | `stderr`      | Log file path. You may also use `stdout` and `stderr` |
 | `loglevel`     | String | No       | `info`        | Log level. Available values: `debug`, `warn`, `error` and `info` |
+| `progress`     | [Progress](#progress-settings) | No | - | Anonymization progress logging |
 | `filters`          | Map of [Filters](#filters-settings) | No      | -             | Filters set for specified tables (key as a table name). Note: for PgSQL you also need to specify a scheme (e.g. `public.tablename`) |
+
+##### Progress settings
+
+| Option         | Type   | Required | Default value | Description                                                      |
+|---             | :---:  | :---:    | :---:         |---                                                               |
+| `rhythm`      | String | No       | `0s`    | Frequency write into the log a read bytes count. Progress will be written to the log only when this option is specified and has none-zero value. You may use a human-readable values (e.g. `30s`, `5m`, etc) |
+| `humanize`      | Bool | No       | `false`    | Set this option to `true` if you need to write into the log a read bytes count in a human-readable format. On `false` raw bytes count will be written to the log |
 
 ##### Filters settings
 

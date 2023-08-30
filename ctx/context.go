@@ -2,6 +2,7 @@ package ctx
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/nixys/nxs-data-anonymizer/ds/mysql"
 	"github.com/nixys/nxs-data-anonymizer/modules/filters/relfilter"
@@ -11,10 +12,16 @@ import (
 
 // Ctx defines application custom context
 type Ctx struct {
-	Conf  confOpts
-	Args  *Args
-	Rules relfilter.Rules
-	MySQL *mysql.MySQL
+	Conf     confOpts
+	Args     *Args
+	Rules    relfilter.Rules
+	MySQL    *mysql.MySQL
+	Progress progressCtx
+}
+
+type progressCtx struct {
+	Rhythm   time.Duration
+	Humanize bool
 }
 
 // Init initiates application custom context
@@ -67,6 +74,14 @@ func (c *Ctx) Init(opts appctx.CustomContextFuncOpts) (appctx.CfgData, error) {
 				return cc
 			}(),
 		}
+	}
+
+	// Progress settings
+	c.Progress.Humanize = c.Conf.Progress.Humanize
+
+	c.Progress.Rhythm, err = time.ParseDuration(c.Conf.Progress.Rhythm)
+	if err != nil {
+		return appctx.CfgData{}, err
 	}
 
 	return appctx.CfgData{
