@@ -98,7 +98,7 @@ func ArgsRead() Args {
 	cleanup := args.BoolLong(
 		"cleanup",
 		'C',
-		"Clean up deastination database (experimental). Available only for MySQL")
+		"Clean up destination database (experimental). Available only for MySQL")
 
 	args.Parse(os.Args)
 
