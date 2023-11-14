@@ -2,9 +2,9 @@ package ctx
 
 import (
 	"fmt"
-	"io"
 	"os"
 
+	"github.com/nixys/nxs-data-anonymizer/misc"
 	"github.com/pborman/getopt/v2"
 )
 
@@ -18,30 +18,14 @@ var version string
 type Args struct {
 	ConfigPath string
 	LogFormat  LogFormat
-	Input      io.Reader
-	Output     io.Writer
+	Input      *string
+	Output     *string
 	Cleanup    bool
 	DBType     DBType
 }
 
-type DBType string
-
-const (
-	DBTypeMySQL DBType = "mysql"
-	DBTypePgSQL DBType = "pgsql"
-)
-
-type LogFormat string
-
-const (
-	LogFormatJSON  LogFormat = "json"
-	LogFormatPlain LogFormat = "plain"
-)
-
 // ArgsRead reads arguments from command line
-func ArgsRead() Args {
-
-	var a Args
+func ArgsRead() (Args, error) {
 
 	args := getopt.New()
 
@@ -58,8 +42,8 @@ func ArgsRead() Args {
 	confPath := args.StringLong(
 		"conf",
 		'c',
-		"",
-		fmt.Sprintf("Config file path. Default path: %s", confPathDefault))
+		confPathDefault,
+		fmt.Sprintf("Config file path"))
 
 	input := args.StringLong(
 		"input",
@@ -102,62 +86,41 @@ func ArgsRead() Args {
 
 	args.Parse(os.Args)
 
+	if args.IsSet("type") == false {
+		fmt.Println("args: 'type' option must be specified")
+		return Args{}, misc.ErrConig
+	}
+
 	/* Show help */
 	if *helpFlag == true {
 		argsHelp(args)
-		os.Exit(0)
+		return Args{}, misc.ErrArgSuccessExit
 	}
 
 	/* Show version */
 	if *versionFlag == true {
 		argsVersion()
-		os.Exit(0)
+		return Args{}, misc.ErrArgSuccessExit
 	}
 
-	/* Config path */
-	if args.IsSet("conf") == true {
-		a.ConfigPath = *confPath
-	} else {
-		a.ConfigPath = confPathDefault
-	}
-
-	if args.IsSet("input") == true {
-
-		f, err := os.Open(*input)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "open input file error: %s\n", err)
-			os.Exit(1)
-		}
-
-		a.Input = f
-	} else {
-		a.Input = os.Stdin
-	}
-
-	if args.IsSet("output") == true {
-
-		f, err := os.Create(*output)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "open output file error: %s\n", err)
-			os.Exit(1)
-		}
-
-		a.Output = f
-	} else {
-		a.Output = os.Stdout
-	}
-
-	a.Cleanup = *cleanup
-	a.LogFormat = LogFormat(*logformat)
-
-	if args.IsSet("type") == true {
-		a.DBType = DBType(*dbType)
-	} else {
-		fmt.Fprintf(os.Stderr, "'type' option must be specified\n")
-		os.Exit(1)
-	}
-
-	return a
+	return Args{
+		ConfigPath: *confPath,
+		LogFormat:  LogFormat(*logformat),
+		Input: func() *string {
+			if args.IsSet("input") == true {
+				return input
+			}
+			return nil
+		}(),
+		Output: func() *string {
+			if args.IsSet("output") == true {
+				return output
+			}
+			return nil
+		}(),
+		Cleanup: *cleanup,
+		DBType:  DBType(*dbType),
+	}, nil
 }
 
 func argsHelp(args *getopt.Set) {

@@ -8,22 +8,30 @@ import (
 
 	"github.com/docker/go-units"
 	"github.com/nixys/nxs-data-anonymizer/ctx"
+	"github.com/nixys/nxs-data-anonymizer/misc"
 	"github.com/sirupsen/logrus"
 
-	appctx "github.com/nixys/nxs-go-appctx/v2"
+	appctx "github.com/nixys/nxs-go-appctx/v3"
 
 	mysql_anonymize "github.com/nixys/nxs-data-anonymizer/modules/anonymizers/mysql"
 	pgsql_anonymize "github.com/nixys/nxs-data-anonymizer/modules/anonymizers/pgsql"
+	"github.com/nixys/nxs-data-anonymizer/modules/filters/relfilter"
 	progressreader "github.com/nixys/nxs-data-anonymizer/modules/progress_reader"
 )
 
-// Runtime executes the routine
-func Runtime(cr context.Context, appCtx *appctx.AppContext, crc chan interface{}) {
+type anomymizeSettings struct {
+	c  context.Context
+	l  *logrus.Logger
+	pr *progressreader.ProgressReader
+	ch chan error
+	db ctx.DBCtx
+	rs relfilter.Rules
+	w  io.Writer
+}
+
+func Runtime(app appctx.App) error {
 
 	var (
-		// Anonymizer reader
-		ar io.Reader
-
 		// Bytes count printed in log last time
 		lb int64
 
@@ -31,36 +39,13 @@ func Runtime(cr context.Context, appCtx *appctx.AppContext, crc chan interface{}
 		timer *time.Timer
 	)
 
-	cc := appCtx.CustomCtx().(*ctx.Ctx)
+	cc := app.ValueGet().(*ctx.Ctx)
 
-	crr, cf := context.WithCancel(cr)
+	cx, cf := context.WithCancel(app.SelfCtx())
+	defer cf()
 
 	// Init progress reader
-	pr := progressreader.Init(cc.Args.Input)
-
-	// Init anonymize reader in accordance with specified database type
-	switch cc.Args.DBType {
-	case ctx.DBTypeMySQL:
-
-		// Drop database tables if necessary (experimental)
-		if cc.Args.Cleanup == true && cc.MySQL != nil {
-			if err := cc.MySQL.DBCleanup(); err != nil {
-				appCtx.Log().Errorf("MySQL clean up error: %s", err)
-				appCtx.RoutineDoneSend(appctx.ExitStatusFailure)
-				cf()
-				return
-			}
-		}
-
-		ar = mysql_anonymize.Init(crr, pr, cc.Rules)
-	case ctx.DBTypePgSQL:
-		ar = pgsql_anonymize.Init(crr, pr, cc.Rules)
-	default:
-		appCtx.Log().Error("unknown database type")
-		appCtx.RoutineDoneSend(appctx.ExitStatusFailure)
-		cf()
-		return
-	}
+	pr := progressreader.Init(cc.Input)
 
 	c := make(chan error, 1)
 
@@ -69,46 +54,101 @@ func Runtime(cr context.Context, appCtx *appctx.AppContext, crc chan interface{}
 		timer.Stop()
 	}
 
-	go func() {
-		_, err := io.Copy(cc.Args.Output, ar)
-		c <- err
-	}()
+	if err := anomymize(
+		anomymizeSettings{
+			c:  cx,
+			l:  cc.Log,
+			pr: pr,
+			ch: c,
+			db: cc.DB,
+			rs: cc.Rules,
+			w:  cc.Output,
+		},
+	); err != nil {
+		return err
+	}
 
 	for {
 		select {
-		case <-cr.Done():
-			// Program termination.
+		case <-app.SelfCtxDone():
 
 			// Log reader progress if necessary
 			if cc.Progress.Rhythm != 0 && lb != pr.Bytes() {
-				progressLog(appCtx.Log(), pr.Bytes(), cc.Progress.Humanize)
+				progressLog(cc.Log, pr.Bytes(), cc.Progress.Humanize)
 			}
 
-			appCtx.Log().Info("anonymizer routine done")
-			cf()
-			return
-		case <-crc:
-			// Updated context application data.
-			// Set the new one in current goroutine.
-			appCtx.Log().Info("anonymizer routine reload, ignoring")
+			cc.Log.Info("anonymizer routine done")
+			return nil
 		case err := <-c:
-			if err != nil {
-				appCtx.Log().Errorf("anonymizer routing error: %s", err)
-				appCtx.RoutineDoneSend(appctx.ExitStatusFailure)
-			} else {
-				appCtx.RoutineDoneSend(appctx.ExitStatusSuccess)
+
+			// Log reader progress if necessary
+			if cc.Progress.Rhythm != 0 && lb != pr.Bytes() {
+				progressLog(cc.Log, pr.Bytes(), cc.Progress.Humanize)
 			}
+
+			if err != nil {
+
+				cc.Log.WithFields(logrus.Fields{
+					"details": err,
+				}).Errorf("anonymize")
+
+				return err
+			}
+
+			cc.Log.Info("anonymizer routine done")
+			return nil
 		case <-timer.C:
 
 			// Save bytes count printed in log last time
 			lb = pr.Bytes()
 
 			// Log reader progress
-			progressLog(appCtx.Log(), lb, cc.Progress.Humanize)
+			progressLog(cc.Log, lb, cc.Progress.Humanize)
 
 			timer.Reset(cc.Progress.Rhythm)
 		}
 	}
+}
+
+func anomymize(st anomymizeSettings) error {
+
+	// Anonymizer reader
+	var ar io.Reader
+
+	// Init anonymize reader in accordance with specified database type
+	switch st.db.Type {
+	case ctx.DBTypeMySQL:
+
+		// Drop database tables if necessary (experimental)
+		if st.db.Cleanup == true && st.db.MySQL != nil {
+			if err := st.db.MySQL.DBCleanup(); err != nil {
+
+				st.l.WithFields(logrus.Fields{
+					"details": err,
+				}).Errorf("anonymize: MySQL clean up")
+
+				return err
+			}
+		}
+
+		ar = mysql_anonymize.Init(st.c, st.pr, st.rs)
+	case ctx.DBTypePgSQL:
+		ar = pgsql_anonymize.Init(st.c, st.pr, st.rs)
+	default:
+
+		st.l.WithFields(logrus.Fields{
+			"details": "unknown database type",
+		}).Errorf("anonymize")
+
+		return misc.ErrRuntime
+	}
+
+	go func() {
+		_, err := io.Copy(st.w, ar)
+		st.ch <- err
+	}()
+
+	return nil
 }
 
 func progressLog(l *logrus.Logger, b int64, h bool) {
@@ -117,7 +157,7 @@ func progressLog(l *logrus.Logger, b int64, h bool) {
 
 	// Prepare output bytes string
 	if h == true {
-		s = units.HumanSize(float64(b))
+		s = units.BytesSize(float64(b))
 	} else {
 		s = strconv.FormatInt(b, 10)
 	}

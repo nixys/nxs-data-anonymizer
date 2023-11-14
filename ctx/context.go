@@ -2,22 +2,47 @@ package ctx
 
 import (
 	"fmt"
+	"io"
+	"os"
 	"time"
 
 	"github.com/nixys/nxs-data-anonymizer/ds/mysql"
+	"github.com/nixys/nxs-data-anonymizer/misc"
 	"github.com/nixys/nxs-data-anonymizer/modules/filters/relfilter"
+	"github.com/sirupsen/logrus"
 
-	appctx "github.com/nixys/nxs-go-appctx/v2"
+	appctx "github.com/nixys/nxs-go-appctx/v3"
 )
 
 // Ctx defines application custom context
 type Ctx struct {
-	Conf     confOpts
-	Args     *Args
+	Log      *logrus.Logger
+	Input    io.Reader
+	Output   io.Writer
 	Rules    relfilter.Rules
-	MySQL    *mysql.MySQL
 	Progress progressCtx
+	DB       DBCtx
 }
+
+type DBCtx struct {
+	Cleanup bool
+	Type    DBType
+	MySQL   *mysql.MySQL
+}
+
+type DBType string
+
+const (
+	DBTypeMySQL DBType = "mysql"
+	DBTypePgSQL DBType = "pgsql"
+)
+
+type LogFormat string
+
+const (
+	LogFormatJSON  LogFormat = "json"
+	LogFormatPlain LogFormat = "plain"
+)
 
 type progressCtx struct {
 	Rhythm   time.Duration
@@ -25,42 +50,84 @@ type progressCtx struct {
 }
 
 // Init initiates application custom context
-func (c *Ctx) Init(opts appctx.CustomContextFuncOpts) (appctx.CfgData, error) {
+func AppCtxInit() (any, error) {
 
-	a := opts.Args.(*Args)
+	c := &Ctx{}
 
-	// Read config file
-	conf, err := confRead(opts.Config)
+	args, err := ArgsRead()
 	if err != nil {
-		return appctx.CfgData{}, err
+		return nil, err
 	}
 
-	// Set application context
-	c.Conf = conf
-	c.Args = a
+	conf, err := confRead(args.ConfigPath)
+	if err != nil {
+		tmpLogError("ctx init", err)
+		return nil, err
+	}
+
+	c.Log, err = logInit(conf.LogFile, conf.LogLevel, args.LogFormat)
+	if err != nil {
+		tmpLogError("ctx init", err)
+		return nil, err
+	}
+
+	if args.Input == nil {
+		c.Input = os.Stdin
+	} else {
+		c.Input, err = os.Open(*args.Input)
+		if err != nil {
+			c.Log.WithFields(logrus.Fields{
+				"details": err,
+			}).Errorf("ctx init: open input file")
+			return nil, err
+		}
+	}
+
+	if args.Output == nil {
+		c.Output = os.Stdout
+	} else {
+		c.Output, err = os.Create(*args.Output)
+		if err != nil {
+			c.Log.WithFields(logrus.Fields{
+				"details": err,
+			}).Errorf("ctx init: open output file")
+			return nil, err
+		}
+	}
+
+	c.DB = DBCtx{
+		Cleanup: args.Cleanup,
+		Type:    args.DBType,
+	}
 
 	// Connect to MySQL if necessary
-	if c.Conf.MySQL != nil {
+	if conf.MySQL != nil {
 		m, err := mysql.Connect(mysql.Settings{
-			Host:     c.Conf.MySQL.Host,
-			Port:     c.Conf.MySQL.Port,
-			Database: c.Conf.MySQL.DB,
-			User:     c.Conf.MySQL.User,
-			Password: c.Conf.MySQL.Password,
+			Host:     conf.MySQL.Host,
+			Port:     conf.MySQL.Port,
+			Database: conf.MySQL.DB,
+			User:     conf.MySQL.User,
+			Password: conf.MySQL.Password,
 		})
 		if err != nil {
-			return appctx.CfgData{}, err
+			c.Log.WithFields(logrus.Fields{
+				"details": err,
+			}).Errorf("ctx init")
+			return nil, err
 		}
-		c.MySQL = &m
+		c.DB.MySQL = &m
 	} else {
-		if a.Cleanup == true {
-			return appctx.CfgData{}, fmt.Errorf("destination database clean up was requested but connection to database doesn't specified")
+		if args.Cleanup == true {
+			c.Log.WithFields(logrus.Fields{
+				"details": "destination database clean up was requested but connection to database doesn't specified",
+			}).Errorf("ctx init")
+			return nil, misc.ErrConig
 		}
 	}
 
 	c.Rules.Tables = make(map[string]relfilter.TableRules)
 
-	for t, f := range c.Conf.Filters {
+	for t, f := range conf.Filters {
 
 		c.Rules.Tables[t] = relfilter.TableRules{
 			Columns: func() map[string]relfilter.ColumnRule {
@@ -77,31 +144,54 @@ func (c *Ctx) Init(opts appctx.CustomContextFuncOpts) (appctx.CfgData, error) {
 	}
 
 	// Progress settings
-	c.Progress.Humanize = c.Conf.Progress.Humanize
+	c.Progress.Humanize = conf.Progress.Humanize
 
-	c.Progress.Rhythm, err = time.ParseDuration(c.Conf.Progress.Rhythm)
+	c.Progress.Rhythm, err = time.ParseDuration(conf.Progress.Rhythm)
 	if err != nil {
-		return appctx.CfgData{}, err
+		c.Log.WithFields(logrus.Fields{
+			"details": err,
+		}).Errorf("ctx init")
+		return nil, err
 	}
 
-	return appctx.CfgData{
-		LogFile:  c.Conf.LogFile,
-		LogLevel: c.Conf.LogLevel,
-	}, nil
+	return c, nil
 }
 
-// Reload reloads application custom context
-func (c *Ctx) Reload(opts appctx.CustomContextFuncOpts) (appctx.CfgData, error) {
-
-	opts.Log.Debug("reloading context")
-
-	return c.Init(opts)
+func tmpLogError(msg string, err error) {
+	l, _ := appctx.DefaultLogInit(os.Stderr, logrus.InfoLevel, &logrus.JSONFormatter{})
+	l.WithFields(logrus.Fields{
+		"details": err,
+	}).Errorf(msg)
 }
 
-// Free frees application custom context
-func (c *Ctx) Free(opts appctx.CustomContextFuncOpts) int {
+func logInit(file, level string, ft LogFormat) (*logrus.Logger, error) {
 
-	opts.Log.Debug("freeing context")
+	var (
+		f   *os.File
+		err error
+	)
 
-	return 0
+	switch file {
+	case "stdout":
+		f = os.Stdout
+	case "stderr":
+		f = os.Stderr
+	default:
+		f, err = os.OpenFile(file, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0600)
+		if err != nil {
+			return nil, fmt.Errorf("log init: %w", err)
+		}
+	}
+
+	// Validate log level
+	l, err := logrus.ParseLevel(level)
+	if err != nil {
+		return nil, fmt.Errorf("log init: %w", err)
+	}
+
+	if ft == LogFormatPlain {
+		return appctx.DefaultLogInit(f, l, nil)
+	}
+
+	return appctx.DefaultLogInit(f, l, &logrus.JSONFormatter{})
 }

@@ -1,57 +1,47 @@
 package main
 
 import (
-	"context"
-	"fmt"
 	"os"
 	"syscall"
 
 	"github.com/nixys/nxs-data-anonymizer/ctx"
+	"github.com/nixys/nxs-data-anonymizer/misc"
 	"github.com/nixys/nxs-data-anonymizer/routines/anonymizer"
 
 	_ "github.com/go-sql-driver/mysql"
-	appctx "github.com/nixys/nxs-go-appctx/v2"
-	"github.com/sirupsen/logrus"
+	appctx "github.com/nixys/nxs-go-appctx/v3"
 )
 
 func main() {
 
-	// Read command line arguments
-	args := ctx.ArgsRead()
-
-	var lf logrus.Formatter
-	switch args.LogFormat {
-	case ctx.LogFormatPlain:
-		lf = nil
-	case ctx.LogFormatJSON:
-		lf = &logrus.JSONFormatter{}
-	default:
-		lf = &logrus.JSONFormatter{}
-	}
-
-	// Init appctx
-	appCtx, err := appctx.ContextInit(appctx.Settings{
-		CustomContext:    &ctx.Ctx{},
-		Args:             &args,
-		CfgPath:          args.ConfigPath,
-		TermSignals:      []os.Signal{syscall.SIGTERM, syscall.SIGINT},
-		ReloadSignals:    []os.Signal{syscall.SIGHUP},
-		LogrotateSignals: []os.Signal{syscall.SIGUSR1},
-		LogFormatter:     lf,
-	})
+	err := appctx.Init(nil).
+		RoutinesSet(
+			map[string]appctx.RoutineParam{
+				"anonymizer": {
+					Handler: anonymizer.Runtime,
+				},
+			},
+		).
+		ValueInitHandlerSet(ctx.AppCtxInit).
+		SignalsSet([]appctx.SignalsParam{
+			{
+				Signals: []os.Signal{
+					syscall.SIGTERM,
+				},
+				Handler: sigHandlerTerm,
+			},
+		}).
+		Run()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s\n", err)
-		os.Exit(1)
+		switch err {
+		case misc.ErrArgSuccessExit:
+			os.Exit(0)
+		default:
+			os.Exit(1)
+		}
 	}
+}
 
-	appCtx.Log().Info("program started")
-
-	// main() body function
-	defer appCtx.MainBodyGeneric()
-
-	// Create main context
-	c := context.Background()
-
-	// Create API server routine
-	appCtx.RoutineCreate(c, anonymizer.Runtime)
+func sigHandlerTerm(sig appctx.Signal) {
+	sig.Shutdown(nil)
 }
