@@ -320,6 +320,10 @@ For support and feedback please contact me:
 - telegram: [@borisershov](https://t.me/borisershov)
 - e-mail: b.ershov@nixys.ru
 
+For news and discussions subscribe the channels:
+- Telegram community (news): [@nxs_data_anonymizer](https://t.me/nxs_data_anonymizer)
+- Telegram community (chat): [@nxs_data_anonymizer_chat](https://t.me/nxs_data_anonymizer_chat)
+
 ## License
 
 nxs-data-anonymizer is released under the [Apache License 2.0](LICENSE).
