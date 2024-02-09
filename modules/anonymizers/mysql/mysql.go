@@ -197,6 +197,18 @@ func Init(ctx context.Context, r io.Reader, rules relfilter.Rules) io.Reader {
 							DataHandler: nil,
 						},
 						{
+							// Skip table keys description
+							Name: stateFieldDescriptionTailSkip,
+							Switch: fsm.Switch{
+								Trigger: []byte("FOREIGN"),
+								Delimiters: fsm.Delimiters{
+									L: []byte{' '},
+									R: []byte{' '},
+								},
+							},
+							DataHandler: nil,
+						},
+						{
 							Name: stateFieldsDescriptionName,
 							Switch: fsm.Switch{
 								Trigger: []byte("`"),
