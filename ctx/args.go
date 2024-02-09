@@ -86,11 +86,6 @@ func ArgsRead() (Args, error) {
 
 	args.Parse(os.Args)
 
-	if args.IsSet("type") == false {
-		fmt.Println("args: 'type' option must be specified")
-		return Args{}, misc.ErrConig
-	}
-
 	/* Show help */
 	if *helpFlag == true {
 		argsHelp(args)
@@ -101,6 +96,11 @@ func ArgsRead() (Args, error) {
 	if *versionFlag == true {
 		argsVersion()
 		return Args{}, misc.ErrArgSuccessExit
+	}
+
+	if args.IsSet("type") == false {
+		fmt.Println("args: 'type' option must be specified")
+		return Args{}, misc.ErrConig
 	}
 
 	return Args{

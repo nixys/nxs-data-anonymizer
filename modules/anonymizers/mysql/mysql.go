@@ -161,6 +161,42 @@ func Init(ctx context.Context, r io.Reader, rules relfilter.Rules) io.Reader {
 							DataHandler: nil,
 						},
 						{
+							// Skip table keys description
+							Name: stateFieldDescriptionTailSkip,
+							Switch: fsm.Switch{
+								Trigger: []byte("PRIMARY"),
+								Delimiters: fsm.Delimiters{
+									L: []byte{' '},
+									R: []byte{' '},
+								},
+							},
+							DataHandler: nil,
+						},
+						{
+							// Skip table keys description
+							Name: stateFieldDescriptionTailSkip,
+							Switch: fsm.Switch{
+								Trigger: []byte("UNIQUE"),
+								Delimiters: fsm.Delimiters{
+									L: []byte{' '},
+									R: []byte{' '},
+								},
+							},
+							DataHandler: nil,
+						},
+						{
+							// Skip table keys description
+							Name: stateFieldDescriptionTailSkip,
+							Switch: fsm.Switch{
+								Trigger: []byte("CONSTRAINT"),
+								Delimiters: fsm.Delimiters{
+									L: []byte{' '},
+									R: []byte{' '},
+								},
+							},
+							DataHandler: nil,
+						},
+						{
 							Name: stateFieldsDescriptionName,
 							Switch: fsm.Switch{
 								Trigger: []byte("`"),
