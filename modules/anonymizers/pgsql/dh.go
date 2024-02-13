@@ -19,7 +19,7 @@ func dhTableName(usrCtx any, deferred, token []byte) ([]byte, error) {
 
 func dhFieldName(usrCtx any, deferred, token []byte) ([]byte, error) {
 
-	fname := bytes.TrimSpace(deferred)
+	fname := bytes.Trim(bytes.TrimSpace(deferred), "\"")
 
 	filter := usrCtx.(*relfilter.Filter)
 	filter.ColumnAdd(string(fname), relfilter.ColumnTypeNone)
