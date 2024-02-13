@@ -318,7 +318,7 @@ Following features are already in backlog for our development team and will be r
 
 For support and feedback please contact me:
 - telegram: [@borisershov](https://t.me/borisershov)
-- e-mail: b.ershov@nixys.ru
+- e-mail: b.ershov@nixys.io
 
 For news and discussions subscribe the channels:
 - Telegram community (news): [@nxs_data_anonymizer](https://t.me/nxs_data_anonymizer)
