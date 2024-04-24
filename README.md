@@ -261,22 +261,41 @@ Filters description for specified table.
 
 | Option        | Type   | Required | Default value | Description                                                      |
 |---            | :---:  | :---:    | :---:         |---                                                               |
-| `value`       | String | No       | -             | The value to be used to replace at every cell in specified column. This value may be either fixed value or Go template with the [Sprig template library's](https://masterminds.github.io/sprig/) functions. You may also use values of other columns in the rules for same row (with values before substitutions).</br></br>Additional filter functions:</br>- `null`: set a field value to `NULL`</br>- `isNull`: compare a field value with `NULL`|
+| `type`        | String | No       | `template`    | Type of field `value`: `template` and `command` are available  |
+| `value`       | String | Yes      | -             | The value to be used to replace at every cell in specified column. In accordance with the `type` this value may be either `Go template` or `command`. See below for details|
 | `unique`      | Bool   | No       | `false`       | If true checks the generated value for cell is unique whole the column |
+
+**Go template**
+
+To anonymize a database fields you may use a Go template with the [Sprig template library's](https://masterminds.github.io/sprig/) functions. You may also use values of other columns in the rules for same row (with values before substitutions).
+
+Additional filter functions:
+- `null`: set a field value to `NULL`
+- `isNull`: compare a field value with `NULL`
+
+**Command**
+
+To anonymize a database fields you may use a commands (scripts or binaries) with any logic you need. The command's concept has following properties:
+- The command's `stdout` will be used as a new value for the anonymized field
+- Command must return zero exit code, otherwise nxs-data-anonymizer will falls with error (in this case `stderr` will be used as an error text)
+- Environment variables with the row data are available within the command:
+  - `ENVVARTABLE`: contains a name of the filtered table
+  - `ENVVARCURCOLUMN`: contains the current column name 
+  - `ENVVARCOLUMN_{COLUMN_NAME}`: contains values (before substitutions) for all columns for the current row
 
 #### Example
 
 Imagine you have a simple table `users` in your production PgSQL like this:
 
-| id | username | api_key |
-| :---: | :---: | :---: |
-| 1 | `admin` | `epezyj0cj5rqrdtxklnzxr3f333uibtz6avek7926141t1c918` |
-| 2 | `alice` | `2od4vfsx2irj98hgjaoi6n7wjr02dg79cvqnmet4kyuhol877z` |
-| 3 | `bob`   | `owp7hob5s3o083d5hmursxgcv9wc4foyl20cbxbrr73egj6jkx` |
+| id | username | password | api_key |
+| :---: | :---: | :---: | :---: |
+| 1 | `admin` | `ZjCX6wUxtXIMtip` | `epezyj0cj5rqrdtxklnzxr3f333uibtz6avek7926141t1c918` |
+| 2 | `alice` | `tuhjLkgwwetiwf8` | `2od4vfsx2irj98hgjaoi6n7wjr02dg79cvqnmet4kyuhol877z` |
+| 3 | `bob`   | `AjRzvRp3DWo6VbA` | `owp7hob5s3o083d5hmursxgcv9wc4foyl20cbxbrr73egj6jkx` |
 
 You need to get a dump with fake values:
-- For `admin`: preset fixed value for an API key to avoid the need to change an app settings in your dev/test/stage or local environment after downloading the dump
-- For others: usernames in format `user_N` (where `N` it is a user ID) and unique random API keys
+- For `admin`: preset fixed value for a password and API key to avoid the need to change an app settings in your dev/test/stage or local environment after downloading the dump
+- For others: usernames in format `user_N` (where `N` it is a user ID) and unique random  passwords and API keys
 
 In accordance with these conditions, the nxs-data-anonymizer config may look like this:
 
@@ -286,23 +305,56 @@ filters:
     columns:
       username:
         value: "{{ if eq .Values.username \"admin\" }}{{ .Values.username }}{{ else }}user_{{ .Values.id }}{{ end }}"
+      password:
+        type: command
+        value: /path/to/script.sh
+        unique: true
       api_key:
         value: "{{ if eq .Values.username \"admin\" }}preset_admin_api_key{{ else }}{{- randAlphaNum 50 | nospace | lower -}}{{ end }}"
         unique: true
 ```
 
+The `/path/to/script.sh` script content is following:
+
+```bash
+#!/bin/bash
+
+# Print preset password if current user is admin
+if [ "$ENVVARCOLUMN_username" == "admin" ];
+then
+    echo -n "preset_admin_password"
+    exit 0
+fi
+
+# Generate password for other users
+p=$(pwgen -s 5 1 2>&1) 
+if [ ! $? -eq 0 ];
+then
+
+    # On error print message to stderr and exit with non zero code
+
+    echo -n "$p" >&2
+    exit 1
+fi
+
+# Print generated password
+echo $p | tr -d '\n'
+
+exit 0
+```
+
 Now you may execute the following command in order to load anonymized data into your dev DB:
 
 ```
-pgdump ... | ./nxs-data-anonymizer -c filters.conf | psql -h localhost -U user example
+pg_dump ... | ./nxs-data-anonymizer -c filters.conf | psql -h localhost -U user example
 ```
 
 As a result:
-| id | username | api_key |
-| :---: | :---: | :---: |
-| 1 | `admin` | `preset_admin_api_key` |
-| 2 | `user_2` | `dhx4mccxyd8ux5uf1khpbqsws8qqeqs4efex1vhfltzhtjcwcu` |
-| 3 | `user_3`   | `lgkkq3csskuyew8fr52vfjjenjzudokmiidg3cohl2bertc93x` |
+| id | username | password | api_key |
+| :---: | :---: | :---: | :---: |
+| 1 | `admin` | `preset_admin_password` | `preset_admin_api_key` |
+| 2 | `user_2` | `Pp4HY` | `dhx4mccxyd8ux5uf1khpbqsws8qqeqs4efex1vhfltzhtjcwcu` |
+| 3 | `user_3`   | `vu5TW` | `lgkkq3csskuyew8fr52vfjjenjzudokmiidg3cohl2bertc93x` |
 
 It's easy.
 
