@@ -1,6 +1,9 @@
 package ctx
 
 import (
+	"fmt"
+
+	"github.com/nixys/nxs-data-anonymizer/misc"
 	conf "github.com/nixys/nxs-go-conf"
 )
 
@@ -23,7 +26,8 @@ type filterConf struct {
 }
 
 type columnFilterConf struct {
-	Value  string `conf:"value"`
+	Type   string `conf:"type" conf_extraopts:"default=template"`
+	Value  string `conf:"value" conf_extraopts:"required"`
 	Unique bool   `conf:"unique"`
 }
 
@@ -48,5 +52,13 @@ func confRead(confPath string) (confOpts, error) {
 		return c, err
 	}
 
-	return c, err
+	for _, f := range c.Filters {
+		for _, cf := range f.Columns {
+			if misc.ValueTypeFromString(cf.Type) == misc.ValueTypeUnknown {
+				return c, fmt.Errorf("conf read: unknown filter type")
+			}
+		}
+	}
+
+	return c, nil
 }

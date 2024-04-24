@@ -3,6 +3,7 @@ package relfilter
 import (
 	"bytes"
 	"fmt"
+	"os/exec"
 
 	"github.com/nixys/nxs-data-anonymizer/misc"
 )
@@ -16,6 +17,7 @@ type TableRules struct {
 }
 
 type ColumnRule struct {
+	Type   misc.ValueType
 	Value  string
 	Unique bool
 }
@@ -45,6 +47,12 @@ type rowValue struct {
 }
 
 const uniqueAttempts = 5
+
+const (
+	envVarTable        = "ENVVARTABLE"
+	envVarColumnPrefix = "ENVVARCOLUMN_"
+	envVarCurTable     = "ENVVARCURCOLUMN"
+)
 
 func Init(rules Rules) *Filter {
 	return &Filter{
@@ -111,12 +119,23 @@ func (filter *Filter) Apply() error {
 			Values:    make(map[string][]byte),
 		}
 
+		// Init table data env variables with current table name
+		tdenv := []string{
+			fmt.Sprintf("%s=%s", envVarTable, tname),
+		}
+
 		if len(filter.tableData.columns.cc) > len(filter.tableData.values) {
 			return fmt.Errorf("mismatch count of columns and values for table '%s'", tname)
 		}
 
 		for i, d := range filter.tableData.columns.cc {
 			td.Values[d.n] = filter.tableData.values[i].V
+
+			// Fill env variables with columns and its values
+			tdenv = append(
+				tdenv,
+				fmt.Sprintf("%s%s=%s", envVarColumnPrefix, d.n, string(filter.tableData.values[i].V)),
+			)
 		}
 
 		// Filter all columns with specified rules
@@ -128,16 +147,55 @@ func (filter *Filter) Apply() error {
 				continue
 			}
 
+			// Create tmp env variables with current column name
+			tde := append(
+				tdenv,
+				fmt.Sprintf("%s=%s", envVarCurTable, d.n),
+			)
+
 			v, err := func() ([]byte, error) {
 
 				for i := 0; i < uniqueAttempts; i++ {
 
-					v, err := misc.TemplateExec(
-						c.Value,
-						td,
+					var (
+						v   []byte
+						err error
 					)
-					if err != nil {
-						return []byte{}, fmt.Errorf("value compile template: %w", err)
+
+					switch c.Type {
+					case misc.ValueTypeTemplate:
+						v, err = misc.TemplateExec(
+							c.Value,
+							td,
+						)
+						if err != nil {
+							return []byte{}, fmt.Errorf("value compile template: %w", err)
+						}
+					case misc.ValueTypeCommand:
+
+						var stderr, stdout bytes.Buffer
+
+						cmd := exec.Command(c.Value)
+
+						cmd.Stdout = &stdout
+						cmd.Stderr = &stderr
+
+						cmd.Env = tde
+
+						if err := cmd.Run(); err != nil {
+
+							e, b := err.(*exec.ExitError)
+							if b == false {
+								return []byte{}, fmt.Errorf("value exec command: %w", err)
+							}
+
+							return []byte{}, fmt.Errorf("value exec command: bad exit code %d: %s", e.ExitCode(), stderr.String())
+						}
+
+						v = stdout.Bytes()
+
+					default:
+						return []byte{}, fmt.Errorf("value compile: unknown type")
 					}
 
 					v = bytes.ReplaceAll(v, []byte("\n"), []byte("\\n"))

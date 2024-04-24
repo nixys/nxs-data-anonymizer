@@ -134,6 +134,7 @@ func AppCtxInit() (any, error) {
 				cc := make(map[string]relfilter.ColumnRule)
 				for c, cf := range f.Columns {
 					cc[c] = relfilter.ColumnRule{
+						Type:   misc.ValueTypeFromString(cf.Type),
 						Value:  cf.Value,
 						Unique: cf.Unique,
 					}
