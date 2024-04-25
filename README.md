@@ -11,7 +11,9 @@ nxs-data-anonymizer is a tool for anonymizing **PostgreSQL** and **MySQL/MariaDB
 - Supported databases and versions:
   - PostgreSQL (9/10/11/12/13/14/15/all versions)
   - MySQL/MariaDB/Percona (5.7/8.0/8.1/all versions)
-- Flexible data faking based on Go templates and [Sprig template’s library](https://masterminds.github.io/sprig/) like [Helm](https://helm.sh/docs/chart_template_guide/functions_and_pipelines/). You may also use values of other columns for same row to build more flexible rules
+- Flexible data faking based on:
+  - Go templates and [Sprig template’s library](https://masterminds.github.io/sprig/) like [Helm](https://helm.sh/docs/chart_template_guide/functions_and_pipelines/). You may also use values of other columns for same row to build more flexible rules
+  - External commands you may execute to create table field value
 - Stream data processing. It means that you can a use the tool through a pipe in command line and redirect dump from source DB directly to the destination DB with required transformations
 - Easy to integrate into your CI/CD
 
