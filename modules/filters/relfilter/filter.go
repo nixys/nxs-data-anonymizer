@@ -74,6 +74,12 @@ func (filter *Filter) TableNameGet() string {
 	return filter.tableData.name
 }
 
+// TableNameLookup looks up filters for specified table name
+func (filter *Filter) TableNameLookup(name string) (TableRules, bool) {
+	t, b := filter.rules.Tables[name]
+	return t, b
+}
+
 // ColumnAdd adds new column into current data set
 func (filter *Filter) ColumnAdd(name string, t ColumnType) {
 	filter.tableData.columns.add(name, t)
@@ -111,7 +117,7 @@ func (filter *Filter) Apply() error {
 	tname := filter.tableData.name
 
 	// Check current table exist in rules
-	t, b := filter.rules.Tables[tname]
+	t, b := filter.TableNameLookup(tname)
 	if b == true {
 
 		td := misc.TemplateData{

@@ -27,6 +27,7 @@ type anomymizeSettings struct {
 	db ctx.DBCtx
 	rs relfilter.Rules
 	w  io.Writer
+	s  ctx.SecurityCtx
 }
 
 func Runtime(app appctx.App) error {
@@ -63,6 +64,7 @@ func Runtime(app appctx.App) error {
 			db: cc.DB,
 			rs: cc.Rules,
 			w:  cc.Output,
+			s:  cc.Security,
 		},
 	); err != nil {
 		return err
@@ -131,7 +133,23 @@ func anomymize(st anomymizeSettings) error {
 			}
 		}
 
-		ar = mysql_anonymize.Init(st.c, st.pr, st.rs)
+		ar = mysql_anonymize.Init(
+			st.c,
+			st.pr,
+			mysql_anonymize.InitSettings{
+				Security: mysql_anonymize.SecuritySettings{
+					Policy: mysql_anonymize.SecurityPolicySettings{
+						Tables:  st.s.Policy.Tables,
+						Columns: st.s.Policy.Columns,
+					},
+					Exceptions: mysql_anonymize.SecurityExceptionsSettings{
+						Tables:  st.s.Exceptions.Tables,
+						Columns: st.s.Exceptions.Columns,
+					},
+				},
+				Rules: st.rs,
+			},
+		)
 	case ctx.DBTypePgSQL:
 		ar = pgsql_anonymize.Init(st.c, st.pr, st.rs)
 	default:
