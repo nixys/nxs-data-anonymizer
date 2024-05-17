@@ -5,20 +5,61 @@ import (
 	"io"
 	"strings"
 
+	"github.com/nixys/nxs-data-anonymizer/misc"
 	"github.com/nixys/nxs-data-anonymizer/modules/filters/relfilter"
 
 	fsm "github.com/nixys/nxs-go-fsm"
 )
 
+type InitSettings struct {
+	Security SecuritySettings
+	Rules    relfilter.Rules
+}
+
+type SecuritySettings struct {
+	Policy     SecurityPolicySettings
+	Exceptions SecurityExceptionsSettings
+}
+
+type SecurityPolicySettings struct {
+	Tables  misc.SecurityPolicyTablesType
+	Columns misc.SecurityPolicyColumnsType
+}
+
+type SecurityExceptionsSettings struct {
+	Tables  map[string]any
+	Columns map[string]any
+}
+
 type userCtx struct {
 	filter *relfilter.Filter
 	column userColumnCtx
+
+	security securityCtx
 }
 
 type userColumnCtx struct {
 	name       string
 	columnType relfilter.ColumnType
 	isSkip     bool
+}
+
+type securityCtx struct {
+	tmpBuf []byte
+	isSkip bool
+
+	policy     securityPolicyCtx
+	exceptions securityExceptionsCtx
+}
+
+type securityPolicyCtx struct {
+	tables  misc.SecurityPolicyTablesType
+	columns misc.SecurityPolicyColumnsType
+}
+
+type securityExceptionsCtx struct {
+	tables  map[string]any
+	columns map[string]any
 }
 
 var typeKeys = map[string]relfilter.ColumnType{
@@ -67,19 +108,29 @@ var typeKeys = map[string]relfilter.ColumnType{
 	"longblob":   relfilter.ColumnTypeBinary,
 }
 
-func userCtxInit(rules relfilter.Rules) *userCtx {
+func userCtxInit(s InitSettings) *userCtx {
 	return &userCtx{
-		filter: relfilter.Init(rules),
+		filter: relfilter.Init(s.Rules),
+		security: securityCtx{
+			policy: securityPolicyCtx{
+				tables:  s.Security.Policy.Tables,
+				columns: s.Security.Policy.Columns,
+			},
+			exceptions: securityExceptionsCtx{
+				tables:  s.Security.Exceptions.Tables,
+				columns: s.Security.Exceptions.Columns,
+			},
+		},
 	}
 }
 
-func Init(ctx context.Context, r io.Reader, rules relfilter.Rules) io.Reader {
+func Init(ctx context.Context, r io.Reader, s InitSettings) io.Reader {
 
 	return fsm.Init(
 		r,
 		fsm.Description{
 			Ctx:       ctx,
-			UserCtx:   userCtxInit(rules),
+			UserCtx:   userCtxInit(s),
 			InitState: stateCreateSearch,
 			States: map[fsm.StateName]fsm.State{
 
@@ -94,7 +145,7 @@ func Init(ctx context.Context, r io.Reader, rules relfilter.Rules) io.Reader {
 									R: []byte{' '},
 								},
 							},
-							DataHandler: nil,
+							DataHandler: dhSecurityCreateTable,
 						},
 					},
 				},
@@ -109,7 +160,7 @@ func Init(ctx context.Context, r io.Reader, rules relfilter.Rules) io.Reader {
 									R: []byte{' '},
 								},
 							},
-							DataHandler: nil,
+							DataHandler: dhSecurityCreateTableName,
 						},
 					},
 				},
@@ -120,7 +171,7 @@ func Init(ctx context.Context, r io.Reader, rules relfilter.Rules) io.Reader {
 							Switch: fsm.Switch{
 								Trigger: []byte("`"),
 							},
-							DataHandler: nil,
+							DataHandler: dhSecurityCreateTableName,
 						},
 					},
 				},
@@ -142,7 +193,7 @@ func Init(ctx context.Context, r io.Reader, rules relfilter.Rules) io.Reader {
 							Switch: fsm.Switch{
 								Trigger: []byte("("),
 							},
-							DataHandler: nil,
+							DataHandler: dhSecurityNil,
 						},
 					},
 				},
@@ -158,7 +209,7 @@ func Init(ctx context.Context, r io.Reader, rules relfilter.Rules) io.Reader {
 									R: []byte{' '},
 								},
 							},
-							DataHandler: nil,
+							DataHandler: dhSecurityNil,
 						},
 						{
 							// Skip table keys description
@@ -170,7 +221,7 @@ func Init(ctx context.Context, r io.Reader, rules relfilter.Rules) io.Reader {
 									R: []byte{' '},
 								},
 							},
-							DataHandler: nil,
+							DataHandler: dhSecurityNil,
 						},
 						{
 							// Skip table keys description
@@ -182,7 +233,7 @@ func Init(ctx context.Context, r io.Reader, rules relfilter.Rules) io.Reader {
 									R: []byte{' '},
 								},
 							},
-							DataHandler: nil,
+							DataHandler: dhSecurityNil,
 						},
 						{
 							// Skip table keys description
@@ -194,7 +245,7 @@ func Init(ctx context.Context, r io.Reader, rules relfilter.Rules) io.Reader {
 									R: []byte{' '},
 								},
 							},
-							DataHandler: nil,
+							DataHandler: dhSecurityNil,
 						},
 						{
 							// Skip table keys description
@@ -206,14 +257,14 @@ func Init(ctx context.Context, r io.Reader, rules relfilter.Rules) io.Reader {
 									R: []byte{' '},
 								},
 							},
-							DataHandler: nil,
+							DataHandler: dhSecurityNil,
 						},
 						{
 							Name: stateFieldsDescriptionName,
 							Switch: fsm.Switch{
 								Trigger: []byte("`"),
 							},
-							DataHandler: nil,
+							DataHandler: dhSecurityNil,
 						},
 					},
 				},
@@ -227,7 +278,7 @@ func Init(ctx context.Context, r io.Reader, rules relfilter.Rules) io.Reader {
 									R: []byte{'\n'},
 								},
 							},
-							DataHandler: nil,
+							DataHandler: dhSecurityNil,
 						},
 						{
 							Name: statefFieldsDescriptionBlockEnd,
@@ -237,7 +288,7 @@ func Init(ctx context.Context, r io.Reader, rules relfilter.Rules) io.Reader {
 									L: []byte{'\n'},
 								},
 							},
-							DataHandler: nil,
+							DataHandler: dhSecurityNil,
 						},
 					},
 				},
@@ -314,7 +365,7 @@ func Init(ctx context.Context, r io.Reader, rules relfilter.Rules) io.Reader {
 									R: []byte{'\n'},
 								},
 							},
-							DataHandler: nil,
+							DataHandler: dhSecurityNil,
 						},
 					},
 				},
@@ -329,7 +380,7 @@ func Init(ctx context.Context, r io.Reader, rules relfilter.Rules) io.Reader {
 									R: []byte{' '},
 								},
 							},
-							DataHandler: nil,
+							DataHandler: dhSecurityCreateTable,
 						},
 						{
 							Name: stateInsertInto,
@@ -340,7 +391,7 @@ func Init(ctx context.Context, r io.Reader, rules relfilter.Rules) io.Reader {
 									R: []byte{' '},
 								},
 							},
-							DataHandler: nil,
+							DataHandler: dhSecurityNil,
 						},
 					},
 				},
@@ -356,7 +407,7 @@ func Init(ctx context.Context, r io.Reader, rules relfilter.Rules) io.Reader {
 									R: []byte{' '},
 								},
 							},
-							DataHandler: nil,
+							DataHandler: dhSecurityNil,
 						},
 					},
 				},
@@ -367,7 +418,7 @@ func Init(ctx context.Context, r io.Reader, rules relfilter.Rules) io.Reader {
 							Switch: fsm.Switch{
 								Trigger: []byte("`"),
 							},
-							DataHandler: nil,
+							DataHandler: dhSecurityNil,
 						},
 					},
 				},
@@ -393,7 +444,7 @@ func Init(ctx context.Context, r io.Reader, rules relfilter.Rules) io.Reader {
 									R: []byte{' ', '\n'},
 								},
 							},
-							DataHandler: nil,
+							DataHandler: dhSecurityNil,
 						},
 					},
 				},
@@ -470,14 +521,14 @@ func Init(ctx context.Context, r io.Reader, rules relfilter.Rules) io.Reader {
 							Switch: fsm.Switch{
 								Trigger: []byte(","),
 							},
-							DataHandler: nil,
+							DataHandler: dhSecurityNil,
 						},
 						{
 							Name: stateSomeIntermediateState,
 							Switch: fsm.Switch{
 								Trigger: []byte(";"),
 							},
-							DataHandler: nil,
+							DataHandler: dhSecurityNil,
 						},
 					},
 				},

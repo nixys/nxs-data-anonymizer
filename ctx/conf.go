@@ -13,7 +13,9 @@ type confOpts struct {
 
 	Progress progressConf          `conf:"progress"`
 	Filters  map[string]filterConf `conf:"filters"`
-	MySQL    *mysqlConf            `conf:"mysql"`
+	Security securityConf          `conf:"security"`
+
+	MySQL *mysqlConf `conf:"mysql"`
 }
 
 type progressConf struct {
@@ -29,6 +31,22 @@ type columnFilterConf struct {
 	Type   string `conf:"type" conf_extraopts:"default=template"`
 	Value  string `conf:"value" conf_extraopts:"required"`
 	Unique bool   `conf:"unique"`
+}
+
+type securityConf struct {
+	Policy     securityPolicyConf     `conf:"policy"`
+	Exceptions securityExceptionsConf `conf:"exceptions"`
+	Defaults   filterConf             `conf:"defaults"`
+}
+
+type securityPolicyConf struct {
+	Tables  string `conf:"tables" conf_extraopts:"default=pass"`
+	Columns string `conf:"columns" conf_extraopts:"default=pass"`
+}
+
+type securityExceptionsConf struct {
+	Tables  []string `conf:"tables"`
+	Columns []string `conf:"columns"`
 }
 
 type mysqlConf struct {
@@ -57,6 +75,20 @@ func confRead(confPath string) (confOpts, error) {
 			if misc.ValueTypeFromString(cf.Type) == misc.ValueTypeUnknown {
 				return c, fmt.Errorf("conf read: unknown filter type")
 			}
+		}
+	}
+
+	if misc.SecurityPolicyTablesTypeFromString(c.Security.Policy.Tables) == misc.SecurityPolicyTablesUnknown {
+		return c, fmt.Errorf("conf read: unknown security policy tables type")
+	}
+
+	if misc.SecurityPolicyColumnsTypeFromString(c.Security.Policy.Columns) == misc.SecurityPolicyColumnsUnknown {
+		return c, fmt.Errorf("conf read: unknown security policy columns type")
+	}
+
+	for _, cf := range c.Security.Defaults.Columns {
+		if misc.ValueTypeFromString(cf.Type) == misc.ValueTypeUnknown {
+			return c, fmt.Errorf("conf read: unknown default filter type")
 		}
 	}
 

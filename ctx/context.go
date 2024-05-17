@@ -21,6 +21,7 @@ type Ctx struct {
 	Output   io.Writer
 	Rules    relfilter.Rules
 	Progress progressCtx
+	Security SecurityCtx
 	DB       DBCtx
 }
 
@@ -47,6 +48,21 @@ const (
 type progressCtx struct {
 	Rhythm   time.Duration
 	Humanize bool
+}
+
+type SecurityCtx struct {
+	Policy     securityPolicyCtx
+	Exceptions securityExceptionsCtx
+}
+
+type securityPolicyCtx struct {
+	Tables  misc.SecurityPolicyTablesType
+	Columns misc.SecurityPolicyColumnsType
+}
+
+type securityExceptionsCtx struct {
+	Tables  map[string]any
+	Columns map[string]any
 }
 
 // Init initiates application custom context
@@ -153,6 +169,29 @@ func AppCtxInit() (any, error) {
 			"details": err,
 		}).Errorf("ctx init")
 		return nil, err
+	}
+
+	c.Security = SecurityCtx{
+		Policy: securityPolicyCtx{
+			Tables:  misc.SecurityPolicyTablesTypeFromString(conf.Security.Policy.Tables),
+			Columns: misc.SecurityPolicyColumnsTypeFromString(conf.Security.Policy.Columns),
+		},
+		Exceptions: securityExceptionsCtx{
+			Tables: func() map[string]any {
+				v := make(map[string]any)
+				for _, e := range conf.Security.Exceptions.Tables {
+					v[e] = nil
+				}
+				return v
+			}(),
+			Columns: func() map[string]any {
+				v := make(map[string]any)
+				for _, e := range conf.Security.Exceptions.Columns {
+					v[e] = nil
+				}
+				return v
+			}(),
+		},
 	}
 
 	return c, nil
