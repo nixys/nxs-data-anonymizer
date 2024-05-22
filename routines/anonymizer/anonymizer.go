@@ -138,14 +138,8 @@ func anomymize(st anomymizeSettings) error {
 			st.pr,
 			mysql_anonymize.InitSettings{
 				Security: mysql_anonymize.SecuritySettings{
-					Policy: mysql_anonymize.SecurityPolicySettings{
-						Tables:  st.s.Policy.Tables,
-						Columns: st.s.Policy.Columns,
-					},
-					Exceptions: mysql_anonymize.SecurityExceptionsSettings{
-						Tables:  st.s.Exceptions.Tables,
-						Columns: st.s.Exceptions.Columns,
-					},
+					TablePolicy:     st.s.TablePolicy,
+					TableExceptions: st.s.TableExceptions,
 				},
 				Rules: st.rs,
 			},

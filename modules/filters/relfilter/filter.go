@@ -9,7 +9,10 @@ import (
 )
 
 type Rules struct {
-	Tables map[string]TableRules
+	Tables           map[string]TableRules
+	ExceptionColumns map[string]any
+	Defaults         TableRules
+	RandomizeTypes   map[ColumnType]ColumnRule
 }
 
 type TableRules struct {
@@ -51,8 +54,32 @@ const uniqueAttempts = 5
 const (
 	envVarTable        = "ENVVARTABLE"
 	envVarColumnPrefix = "ENVVARCOLUMN_"
-	envVarCurTable     = "ENVVARCURCOLUMN"
+	envVarCurColumn    = "ENVVARCURCOLUMN"
 )
+
+type rule struct {
+	c  *column
+	i  int
+	cr ColumnRule
+}
+
+var RandomizeTypesDefault = map[ColumnType]ColumnRule{
+	ColumnTypeBinary: {
+		Type:   misc.ValueTypeTemplate,
+		Value:  "cmFuZG9taXplZCBiaW5hcnkgZGF0YQo=",
+		Unique: false,
+	},
+	ColumnTypeNum: {
+		Type:   misc.ValueTypeTemplate,
+		Value:  "0",
+		Unique: false,
+	},
+	ColumnTypeString: {
+		Type:   misc.ValueTypeTemplate,
+		Value:  "randomized string data",
+		Unique: false,
+	},
+}
 
 func Init(rules Rules) *Filter {
 	return &Filter{
@@ -74,10 +101,12 @@ func (filter *Filter) TableNameGet() string {
 	return filter.tableData.name
 }
 
-// TableNameLookup looks up filters for specified table name
-func (filter *Filter) TableNameLookup(name string) (TableRules, bool) {
-	t, b := filter.rules.Tables[name]
-	return t, b
+// TableRulesLookup looks up filters for specified table name
+func (filter *Filter) TableRulesLookup(name string) *TableRules {
+	if t, b := filter.rules.Tables[name]; b {
+		return &t
+	}
+	return nil
 }
 
 // ColumnAdd adds new column into current data set
@@ -111,132 +140,191 @@ func (filter *Filter) ValuePop() Row {
 	}
 }
 
-// Apply applies filter rules for current data set
 func (filter *Filter) Apply() error {
+
+	var rls []rule
 
 	tname := filter.tableData.name
 
-	// Check current table exist in rules
-	t, b := filter.TableNameLookup(tname)
-	if b == true {
+	// Check rules exist for current table
+	tr := filter.TableRulesLookup(tname)
 
-		td := misc.TemplateData{
-			TableName: tname,
-			Values:    make(map[string][]byte),
-		}
+	// Create rules for every column within current table
+	for i, c := range filter.tableData.columns.cc {
 
-		// Init table data env variables with current table name
-		tdenv := []string{
-			fmt.Sprintf("%s=%s", envVarTable, tname),
-		}
+		// Check direct rules for column
+		if tr != nil {
+			if cr, e := tr.Columns[c.n]; e == true {
 
-		if len(filter.tableData.columns.cc) > len(filter.tableData.values) {
-			return fmt.Errorf("mismatch count of columns and values for table '%s'", tname)
-		}
-
-		for i, d := range filter.tableData.columns.cc {
-			td.Values[d.n] = filter.tableData.values[i].V
-
-			// Fill env variables with columns and its values
-			tdenv = append(
-				tdenv,
-				fmt.Sprintf("%s%s=%s", envVarColumnPrefix, d.n, string(filter.tableData.values[i].V)),
-			)
-		}
-
-		// Filter all columns with specified rules
-		for n, d := range filter.tableData.columns.cc {
-
-			// Check rule set for current column
-			c, e := t.Columns[d.n]
-			if e == false {
+				rls = append(
+					rls,
+					rule{
+						c:  c,
+						i:  i,
+						cr: cr,
+					},
+				)
 				continue
 			}
-
-			// Create tmp env variables with current column name
-			tde := append(
-				tdenv,
-				fmt.Sprintf("%s=%s", envVarCurTable, d.n),
-			)
-
-			v, err := func() ([]byte, error) {
-
-				for i := 0; i < uniqueAttempts; i++ {
-
-					var (
-						v   []byte
-						err error
-					)
-
-					switch c.Type {
-					case misc.ValueTypeTemplate:
-						v, err = misc.TemplateExec(
-							c.Value,
-							td,
-						)
-						if err != nil {
-							return []byte{}, fmt.Errorf("value compile template: %w", err)
-						}
-					case misc.ValueTypeCommand:
-
-						var stderr, stdout bytes.Buffer
-
-						cmd := exec.Command(c.Value)
-
-						cmd.Stdout = &stdout
-						cmd.Stderr = &stderr
-
-						cmd.Env = tde
-
-						if err := cmd.Run(); err != nil {
-
-							e, b := err.(*exec.ExitError)
-							if b == false {
-								return []byte{}, fmt.Errorf("value exec command: %w", err)
-							}
-
-							return []byte{}, fmt.Errorf("value exec command: bad exit code %d: %s", e.ExitCode(), stderr.String())
-						}
-
-						v = stdout.Bytes()
-
-					default:
-						return []byte{}, fmt.Errorf("value compile: unknown type")
-					}
-
-					v = bytes.ReplaceAll(v, []byte("\n"), []byte("\\n"))
-
-					if c.Unique == false {
-						return v, nil
-					}
-
-					var uv map[string]any
-					if _, b := filter.tableData.uniques[d.n]; b == false {
-						// For first values
-						uv = make(map[string]any)
-					} else {
-						uv = filter.tableData.uniques[d.n]
-					}
-
-					if _, b := uv[string(v)]; b == false {
-						uv[string(v)] = nil
-						filter.tableData.uniques[d.n] = uv
-						return v, nil
-					}
-				}
-
-				return []byte{}, fmt.Errorf("unable to generate unique value for column `%s.%s`, check filter value for this column in config", filter.tableData.name, d.n)
-			}()
-			if err != nil {
-				return err
-			}
-
-			// Set specified value in accordance with filter
-			filter.tableData.values[n].V = v
 		}
+
+		// Check default rules for column
+		if cr, e := filter.rules.Defaults.Columns[c.n]; e == true {
+			rls = append(
+				rls,
+				rule{
+					c:  c,
+					i:  i,
+					cr: cr,
+				},
+			)
+			continue
+		}
+
+		// Check randomize rules for column
+		if cr, b := filter.rules.RandomizeTypes[c.t]; b {
+
+			// Check that column excepted
+			if _, b := filter.rules.ExceptionColumns[c.n]; !b {
+				rls = append(
+					rls,
+					rule{
+						c:  c,
+						i:  i,
+						cr: cr,
+					},
+				)
+				continue
+			}
+		}
+
+		// Other rules if required
+	}
+
+	// Apply rules
+	if err := filter.applyRules(tname, rls); err != nil {
+		return fmt.Errorf("filters apply: %w", err)
 	}
 
 	return nil
+}
+
+func (filter *Filter) applyRules(tname string, rls []rule) error {
+
+	// If no columns has rules
+	if len(rls) == 0 {
+		return nil
+	}
+
+	// Fill table data and table envs
+	td := misc.TemplateData{
+		TableName: tname,
+		Values:    make(map[string][]byte),
+	}
+
+	tdenv := []string{
+		fmt.Sprintf("%s=%s", envVarTable, tname),
+	}
+
+	for i, c := range filter.tableData.columns.cc {
+		td.Values[c.n] = filter.tableData.values[i].V
+
+		tdenv = append(
+			tdenv,
+			fmt.Sprintf("%s%s=%s", envVarColumnPrefix, c.n, string(filter.tableData.values[i].V)),
+		)
+	}
+
+	// Apply rule for each specified column
+	for _, r := range rls {
+
+		var tde []string
+
+		// Create tmp env variables with current column name
+		tde = append(
+			tdenv,
+			fmt.Sprintf("%s=%s", envVarCurColumn, r.c.n),
+		)
+
+		v, err := filter.applyFilter(r.c.n, r.cr, td, tde)
+		if err != nil {
+			return fmt.Errorf("rules: %w", err)
+		}
+
+		// Set specified value in accordance with filter
+		filter.tableData.values[r.i].V = v
+	}
+
+	return nil
+}
+
+func (filter *Filter) applyFilter(cn string, cr ColumnRule, td misc.TemplateData, tde []string) ([]byte, error) {
+
+	for i := 0; i < uniqueAttempts; i++ {
+
+		var (
+			v   []byte
+			err error
+		)
+
+		switch cr.Type {
+		case misc.ValueTypeTemplate:
+			v, err = misc.TemplateExec(
+				cr.Value,
+				td,
+			)
+			if err != nil {
+				return []byte{}, fmt.Errorf("filter: value compile template: %w", err)
+			}
+		case misc.ValueTypeCommand:
+
+			var stderr, stdout bytes.Buffer
+
+			cmd := exec.Command(cr.Value)
+
+			cmd.Stdout = &stdout
+			cmd.Stderr = &stderr
+
+			cmd.Env = tde
+
+			if err := cmd.Run(); err != nil {
+
+				e, b := err.(*exec.ExitError)
+				if b == false {
+					return []byte{}, fmt.Errorf("filter: value exec command: %w", err)
+				}
+
+				return []byte{}, fmt.Errorf("filter: value exec command: bad exit code %d: %s", e.ExitCode(), stderr.String())
+			}
+
+			v = stdout.Bytes()
+
+		default:
+			return []byte{}, fmt.Errorf("filter: value compile: unknown type")
+		}
+
+		v = bytes.ReplaceAll(v, []byte("\n"), []byte("\\n"))
+
+		if cr.Unique == false {
+			return v, nil
+		}
+
+		var uv map[string]any
+		if _, b := filter.tableData.uniques[cn]; b == false {
+			// For first values
+			uv = make(map[string]any)
+		} else {
+			uv = filter.tableData.uniques[cn]
+		}
+
+		if _, b := uv[string(v)]; b == false {
+			uv[string(v)] = nil
+			filter.tableData.uniques[cn] = uv
+			return v, nil
+		}
+	}
+
+	return []byte{}, fmt.Errorf("filter: unable to generate unique value for column `%s.%s`, check filter value for this column in config", filter.tableData.name, cn)
 }
 
 // rowCleanup cleanups current row values

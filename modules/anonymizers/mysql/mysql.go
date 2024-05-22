@@ -17,18 +17,8 @@ type InitSettings struct {
 }
 
 type SecuritySettings struct {
-	Policy     SecurityPolicySettings
-	Exceptions SecurityExceptionsSettings
-}
-
-type SecurityPolicySettings struct {
-	Tables  misc.SecurityPolicyTablesType
-	Columns misc.SecurityPolicyColumnsType
-}
-
-type SecurityExceptionsSettings struct {
-	Tables  map[string]any
-	Columns map[string]any
+	TablePolicy     misc.SecurityPolicyTablesType
+	TableExceptions map[string]any
 }
 
 type userCtx struct {
@@ -48,18 +38,8 @@ type securityCtx struct {
 	tmpBuf []byte
 	isSkip bool
 
-	policy     securityPolicyCtx
-	exceptions securityExceptionsCtx
-}
-
-type securityPolicyCtx struct {
-	tables  misc.SecurityPolicyTablesType
-	columns misc.SecurityPolicyColumnsType
-}
-
-type securityExceptionsCtx struct {
-	tables  map[string]any
-	columns map[string]any
+	tablePolicy     misc.SecurityPolicyTablesType
+	tableExceptions map[string]any
 }
 
 var typeKeys = map[string]relfilter.ColumnType{
@@ -112,14 +92,8 @@ func userCtxInit(s InitSettings) *userCtx {
 	return &userCtx{
 		filter: relfilter.Init(s.Rules),
 		security: securityCtx{
-			policy: securityPolicyCtx{
-				tables:  s.Security.Policy.Tables,
-				columns: s.Security.Policy.Columns,
-			},
-			exceptions: securityExceptionsCtx{
-				tables:  s.Security.Exceptions.Tables,
-				columns: s.Security.Exceptions.Columns,
-			},
+			tablePolicy:     s.Security.TablePolicy,
+			tableExceptions: s.Security.TableExceptions,
 		},
 	}
 }
