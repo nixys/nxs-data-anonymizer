@@ -14,6 +14,7 @@ nxs-data-anonymizer is a tool for anonymizing **PostgreSQL** and **MySQL/MariaDB
 - Flexible data faking based on:
   - Go templates and [Sprig template’s library](https://masterminds.github.io/sprig/) like [Helm](https://helm.sh/docs/chart_template_guide/functions_and_pipelines/). You may also use values of other columns for same row to build more flexible rules
   - External commands you may execute to create table field value
+  - Security enforcement rules
 - Stream data processing. It means that you can a use the tool through a pipe in command line and redirect dump from source DB directly to the destination DB with required transformations
 - Easy to integrate into your CI/CD
 
@@ -243,6 +244,8 @@ Default configuration file path: `/nxs-data-anonymizer.conf`. The file is repres
 | `loglevel`     | String | No       | `info`        | Log level. Available values: `debug`, `warn`, `error` and `info` |
 | `progress`     | [Progress](#progress-settings) | No | - | Anonymization progress logging |
 | `filters`          | Map of [Filters](#filters-settings) | No      | -             | Filters set for specified tables (key as a table name). Note: for PgSQL you also need to specify a scheme (e.g. `public.tablename`) |
+| `security`     | [Security](#security-settings) | No       | -      | Security enforcement for anonymizer |
+
 
 ##### Progress settings
 
@@ -266,6 +269,35 @@ Filters description for specified table.
 | `type`        | String | No       | `template`    | Type of field `value`: `template` and `command` are available  |
 | `value`       | String | Yes      | -             | The value to be used to replace at every cell in specified column. In accordance with the `type` this value may be either `Go template` or `command`. See below for details|
 | `unique`      | Bool   | No       | `false`       | If true checks the generated value for cell is unique whole the column |
+
+##### Security settings
+
+| Option         | Type   | Required | Default value | Description                                                      |
+|---             | :---:  | :---:    | :---:         |---                                                               |
+| `policy`      | [Policy](#policy-settings) | No       | -      | Security policy for entities |
+| `exceptions`      | [Exceptions](exceptions-settings) | No       | -      | Exceptions for entities |
+| `defaults`      | [Defaults](defaults-settings) | No       | -      | Default filters for entities |
+
+###### Policy settings
+
+| Option         | Type   | Required | Default value | Description                                                      |
+|---             | :---:  | :---:    | :---:         |---                                                               |
+| `tables`      | String | No       | `pass`      | Security policy for tables. If value `skip` is used all undescribed tables in config will be skipped while anonymization |
+| `columns`      | String | No       | `pass`      | Security policy for columns. If value `randomize` is used all undescribed columns in config will be randomized (with respect to types) while anonymization |
+
+###### Exceptions settings
+
+| Option         | Type   | Required | Default value | Description                                                      |
+|---             | :---:  | :---:    | :---:         |---                                                               |
+| `tables`      | Slice of strings | No       | -      | Table names without filters which are not be skipped while anonymization if option `security.policy.tables` set to `skip` |
+| `columns`      | Slice of strings | No       | -      | Column names (in any table) without filters which are not be randomized while anonymization if option `security.policy.columns` set to `randomize` |
+
+###### Defaults settings
+
+| Option         | Type   | Required | Default value | Description                                                      |
+|---             | :---:  | :---:    | :---:         |---                                                               |
+| `columns`      | Map of Filters | No       | -      | Default filter for columns (in any table). That filters will be applied for columns with this names without described filters |
+
 
 **Go template**
 
