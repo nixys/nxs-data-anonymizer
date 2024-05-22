@@ -243,17 +243,17 @@ func rowDataGen(filter *relfilter.Filter) []byte {
 func securityPolicyCheck(uctx *userCtx, tname string) bool {
 
 	// Continue if security policy is `skip`
-	if uctx.security.policy.tables != misc.SecurityPolicyTablesSkip {
+	if uctx.security.tablePolicy != misc.SecurityPolicyTablesSkip {
 		return true
 	}
 
 	// Check rules for specified table name
-	if _, b := uctx.filter.TableNameLookup(tname); b == true {
+	if tr := uctx.filter.TableRulesLookup(tname); tr != nil {
 		return true
 	}
 
 	// Check specified table name in exceptions
-	if _, b := uctx.security.exceptions.tables[tname]; b == true {
+	if _, b := uctx.security.tableExceptions[tname]; b == true {
 		return true
 	}
 

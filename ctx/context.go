@@ -51,18 +51,8 @@ type progressCtx struct {
 }
 
 type SecurityCtx struct {
-	Policy     securityPolicyCtx
-	Exceptions securityExceptionsCtx
-}
-
-type securityPolicyCtx struct {
-	Tables  misc.SecurityPolicyTablesType
-	Columns misc.SecurityPolicyColumnsType
-}
-
-type securityExceptionsCtx struct {
-	Tables  map[string]any
-	Columns map[string]any
+	TablePolicy     misc.SecurityPolicyTablesType
+	TableExceptions map[string]any
 }
 
 // Init initiates application custom context
@@ -143,6 +133,10 @@ func AppCtxInit() (any, error) {
 
 	c.Rules.Tables = make(map[string]relfilter.TableRules)
 
+	if misc.SecurityPolicyColumnsTypeFromString(conf.Security.Policy.Columns) == misc.SecurityPolicyColumnsRandomize {
+		c.Rules.RandomizeTypes = relfilter.RandomizeTypesDefault
+	}
+
 	for t, f := range conf.Filters {
 
 		c.Rules.Tables[t] = relfilter.TableRules{
@@ -160,6 +154,28 @@ func AppCtxInit() (any, error) {
 		}
 	}
 
+	c.Rules.Defaults = relfilter.TableRules{
+		Columns: func() map[string]relfilter.ColumnRule {
+			cc := make(map[string]relfilter.ColumnRule)
+			for c, cf := range conf.Security.Defaults.Columns {
+				cc[c] = relfilter.ColumnRule{
+					Type:   misc.ValueTypeFromString(cf.Type),
+					Value:  cf.Value,
+					Unique: cf.Unique,
+				}
+			}
+			return cc
+		}(),
+	}
+
+	c.Rules.ExceptionColumns = func() map[string]any {
+		v := make(map[string]any)
+		for _, e := range conf.Security.Exceptions.Columns {
+			v[e] = nil
+		}
+		return v
+	}()
+
 	// Progress settings
 	c.Progress.Humanize = conf.Progress.Humanize
 
@@ -172,26 +188,14 @@ func AppCtxInit() (any, error) {
 	}
 
 	c.Security = SecurityCtx{
-		Policy: securityPolicyCtx{
-			Tables:  misc.SecurityPolicyTablesTypeFromString(conf.Security.Policy.Tables),
-			Columns: misc.SecurityPolicyColumnsTypeFromString(conf.Security.Policy.Columns),
-		},
-		Exceptions: securityExceptionsCtx{
-			Tables: func() map[string]any {
-				v := make(map[string]any)
-				for _, e := range conf.Security.Exceptions.Tables {
-					v[e] = nil
-				}
-				return v
-			}(),
-			Columns: func() map[string]any {
-				v := make(map[string]any)
-				for _, e := range conf.Security.Exceptions.Columns {
-					v[e] = nil
-				}
-				return v
-			}(),
-		},
+		TablePolicy: misc.SecurityPolicyTablesTypeFromString(conf.Security.Policy.Tables),
+		TableExceptions: func() map[string]any {
+			v := make(map[string]any)
+			for _, e := range conf.Security.Exceptions.Tables {
+				v[e] = nil
+			}
+			return v
+		}(),
 	}
 
 	return c, nil
