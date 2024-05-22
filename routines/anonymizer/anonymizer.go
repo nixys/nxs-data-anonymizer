@@ -19,7 +19,7 @@ import (
 	progressreader "github.com/nixys/nxs-data-anonymizer/modules/progress_reader"
 )
 
-type anomymizeSettings struct {
+type anonymizeSettings struct {
 	c  context.Context
 	l  *logrus.Logger
 	pr *progressreader.ProgressReader
@@ -55,8 +55,8 @@ func Runtime(app appctx.App) error {
 		timer.Stop()
 	}
 
-	if err := anomymize(
-		anomymizeSettings{
+	if err := anonymize(
+		anonymizeSettings{
 			c:  cx,
 			l:  cc.Log,
 			pr: pr,
@@ -112,7 +112,7 @@ func Runtime(app appctx.App) error {
 	}
 }
 
-func anomymize(st anomymizeSettings) error {
+func anonymize(st anonymizeSettings) error {
 
 	// Anonymizer reader
 	var ar io.Reader
