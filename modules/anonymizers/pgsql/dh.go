@@ -7,12 +7,53 @@ import (
 	"github.com/nixys/nxs-data-anonymizer/modules/filters/relfilter"
 )
 
+func dhCreateTableName(usrCtx any, deferred, token []byte) ([]byte, error) {
+
+	tname := string(bytes.TrimSpace(deferred))
+
+	uctx := usrCtx.(*userCtx)
+	uctx.tn = &tname
+
+	return append(deferred, token...), nil
+}
+
+func dhCreateTableDesc(usrCtx any, deferred, token []byte) ([]byte, error) {
+
+	uctx := usrCtx.(*userCtx)
+
+	clmns := make(map[string]relfilter.ColumnType)
+
+	ss := bytes.Split(deferred, []byte{'\n'})
+
+	for _, s := range ss {
+
+		s = bytes.TrimSuffix(bytes.TrimSpace(s), []byte{','})
+
+		if len(s) > 0 {
+
+			u := bytes.SplitN(s, []byte{' '}, 3)
+
+			// If column type does not specified within the dump
+			if len(u) < 2 {
+				clmns[string(u[0])] = relfilter.ColumnTypeNone
+			} else {
+				clmns[string(u[0])] = columnType(string(u[1]))
+			}
+		}
+	}
+
+	uctx.tables[*uctx.tn] = clmns
+	uctx.tn = nil
+
+	return append(deferred, token...), nil
+}
+
 func dhTableName(usrCtx any, deferred, token []byte) ([]byte, error) {
 
 	tname := bytes.TrimSpace(deferred)
 
-	filter := usrCtx.(*relfilter.Filter)
-	filter.TableCreate(string(tname))
+	uctx := usrCtx.(*userCtx)
+	uctx.filter.TableCreate(string(tname))
 
 	return append(deferred, token...), nil
 }
@@ -21,20 +62,26 @@ func dhFieldName(usrCtx any, deferred, token []byte) ([]byte, error) {
 
 	fname := bytes.Trim(bytes.TrimSpace(deferred), "\"")
 
-	filter := usrCtx.(*relfilter.Filter)
-	filter.ColumnAdd(string(fname), relfilter.ColumnTypeNone)
+	uctx := usrCtx.(*userCtx)
+
+	t, b := uctx.tables[uctx.filter.TableNameGet()][string(fname)]
+	if b == false {
+		t = relfilter.ColumnTypeNone
+	}
+
+	uctx.filter.ColumnAdd(string(fname), t)
 
 	return append(deferred, token...), nil
 }
 
 func dhValue(usrCtx any, deferred, token []byte) ([]byte, error) {
 
-	filter := usrCtx.(*relfilter.Filter)
+	uctx := usrCtx.(*userCtx)
 
 	if bytes.Compare(deferred, []byte("\\N")) == 0 {
-		filter.ValueAdd(nil)
+		uctx.filter.ValueAdd(nil)
 	} else {
-		filter.ValueAdd(deferred)
+		uctx.filter.ValueAdd(deferred)
 	}
 
 	return []byte{}, nil
@@ -42,20 +89,20 @@ func dhValue(usrCtx any, deferred, token []byte) ([]byte, error) {
 
 func dhValueEnd(usrCtx any, deferred, token []byte) ([]byte, error) {
 
-	filter := usrCtx.(*relfilter.Filter)
+	uctx := usrCtx.(*userCtx)
 
 	if bytes.Compare(deferred, []byte("\\N")) == 0 {
-		filter.ValueAdd(nil)
+		uctx.filter.ValueAdd(nil)
 	} else {
-		filter.ValueAdd(deferred)
+		uctx.filter.ValueAdd(deferred)
 	}
 
 	// Apply filter for row
-	if err := filter.Apply(); err != nil {
+	if err := uctx.filter.Apply(); err != nil {
 		return []byte{}, err
 	}
 
-	return rowDataGen(filter), nil
+	return rowDataGen(uctx.filter), nil
 }
 
 func rowDataGen(filter *relfilter.Filter) []byte {

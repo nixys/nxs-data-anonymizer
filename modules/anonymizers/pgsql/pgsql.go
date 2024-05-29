@@ -9,13 +9,40 @@ import (
 	fsm "github.com/nixys/nxs-go-fsm"
 )
 
-func Init(ctx context.Context, r io.Reader, rules relfilter.Rules) io.Reader {
+type InitSettings struct {
+	Rules relfilter.Rules
+}
+
+type userCtx struct {
+	filter *relfilter.Filter
+
+	tn     *string
+	tables map[string]map[string]relfilter.ColumnType
+}
+
+var typeKeys = map[string]relfilter.ColumnType{
+
+	// Strings
+	"character": relfilter.ColumnTypeString,
+
+	// Numeric
+	"integer": relfilter.ColumnTypeNum,
+}
+
+func userCtxInit(s InitSettings) *userCtx {
+	return &userCtx{
+		filter: relfilter.Init(s.Rules),
+		tables: make(map[string]map[string]relfilter.ColumnType),
+	}
+}
+
+func Init(ctx context.Context, r io.Reader, s InitSettings) io.Reader {
 
 	return fsm.Init(
 		r,
 		fsm.Description{
 			Ctx:       ctx,
-			UserCtx:   relfilter.Init(rules),
+			UserCtx:   userCtxInit(s),
 			InitState: stateCopySearch,
 			States: map[fsm.StateName]fsm.State{
 
@@ -32,8 +59,50 @@ func Init(ctx context.Context, r io.Reader, rules relfilter.Rules) io.Reader {
 							},
 							DataHandler: nil,
 						},
+						{
+							Name: stateCreateTableName,
+							Switch: fsm.Switch{
+								Trigger: []byte("CREATE TABLE"),
+								Delimiters: fsm.Delimiters{
+									L: []byte{'\n'},
+									R: []byte{' '},
+								},
+							},
+							DataHandler: nil,
+						},
 					},
 				},
+
+				stateCreateTableName: {
+					NextStates: []fsm.NextState{
+						{
+							Name: stateCreateTableTail,
+							Switch: fsm.Switch{
+								Trigger: []byte("("),
+								Delimiters: fsm.Delimiters{
+									R: []byte{'\n'},
+								},
+							},
+							DataHandler: dhCreateTableName,
+						},
+					},
+				},
+
+				stateCreateTableTail: {
+					NextStates: []fsm.NextState{
+						{
+							Name: stateCopySearch,
+							Switch: fsm.Switch{
+								Trigger: []byte(");"),
+								Delimiters: fsm.Delimiters{
+									R: []byte{'\n'},
+								},
+							},
+							DataHandler: dhCreateTableDesc,
+						},
+					},
+				},
+
 				stateTableName: {
 					NextStates: []fsm.NextState{
 						{
@@ -107,4 +176,12 @@ func Init(ctx context.Context, r io.Reader, rules relfilter.Rules) io.Reader {
 			},
 		},
 	)
+}
+
+func columnType(key string) relfilter.ColumnType {
+	t, b := typeKeys[key]
+	if b == false {
+		return relfilter.ColumnTypeNone
+	}
+	return t
 }
