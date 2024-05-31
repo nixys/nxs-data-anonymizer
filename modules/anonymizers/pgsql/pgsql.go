@@ -4,49 +4,107 @@ import (
 	"context"
 	"io"
 
+	"github.com/nixys/nxs-data-anonymizer/misc"
 	"github.com/nixys/nxs-data-anonymizer/modules/filters/relfilter"
 
 	fsm "github.com/nixys/nxs-go-fsm"
 )
 
-type InitSettings struct {
-	Rules relfilter.Rules
+type InitOpts struct {
+	Security SecurityOpts
+	Rules    relfilter.Rules
+}
+
+type SecurityOpts struct {
+	TablePolicy     misc.SecurityPolicyTablesType
+	TableExceptions map[string]any
 }
 
 type userCtx struct {
 	filter *relfilter.Filter
 
+	security securityCtx
+
 	tn     *string
 	tables map[string]map[string]relfilter.ColumnType
 }
 
-var typeKeys = map[string]relfilter.ColumnType{
+type securityCtx struct {
+	tmpBuf []byte
+	isSkip bool
 
-	// Strings
-	"character": relfilter.ColumnTypeString,
-
-	// Numeric
-	"integer": relfilter.ColumnTypeNum,
+	tablePolicy     misc.SecurityPolicyTablesType
+	tableExceptions map[string]any
 }
 
-func userCtxInit(s InitSettings) *userCtx {
+const (
+	columnTypeString relfilter.ColumnType = "string"
+	columnTypeInt    relfilter.ColumnType = "integer"
+	columnTypeFloat  relfilter.ColumnType = "float"
+)
+
+var typeKeys = map[string]relfilter.ColumnType{
+
+	// Integer
+	"smallint":    columnTypeInt,
+	"integer":     columnTypeInt,
+	"bigint":      columnTypeInt,
+	"smallserial": columnTypeInt,
+	"serial":      columnTypeInt,
+	"bigserial":   columnTypeInt,
+
+	// Float
+	"decimal": columnTypeFloat,
+	"numeric": columnTypeFloat,
+	"real":    columnTypeFloat,
+	"double":  columnTypeFloat,
+
+	// Strings
+	"character": columnTypeString,
+	"bpchar":    columnTypeString,
+	"text":      columnTypeString,
+}
+
+var RandomizeTypesDefault = map[relfilter.ColumnType]relfilter.ColumnRule{
+	columnTypeInt: {
+		Type:   misc.ValueTypeTemplate,
+		Value:  "0",
+		Unique: false,
+	},
+	columnTypeFloat: {
+		Type:   misc.ValueTypeTemplate,
+		Value:  "0.0",
+		Unique: false,
+	},
+	columnTypeString: {
+		Type:   misc.ValueTypeTemplate,
+		Value:  "randomized string data",
+		Unique: false,
+	},
+}
+
+func userCtxInit(s InitOpts) *userCtx {
 	return &userCtx{
 		filter: relfilter.Init(s.Rules),
 		tables: make(map[string]map[string]relfilter.ColumnType),
+		security: securityCtx{
+			tablePolicy:     s.Security.TablePolicy,
+			tableExceptions: s.Security.TableExceptions,
+		},
 	}
 }
 
-func Init(ctx context.Context, r io.Reader, s InitSettings) io.Reader {
+func Init(ctx context.Context, r io.Reader, s InitOpts) io.Reader {
 
 	return fsm.Init(
 		r,
 		fsm.Description{
 			Ctx:       ctx,
 			UserCtx:   userCtxInit(s),
-			InitState: stateCopySearch,
+			InitState: stateInit,
 			States: map[fsm.StateName]fsm.State{
 
-				stateCopySearch: {
+				stateInit: {
 					NextStates: []fsm.NextState{
 						{
 							Name: stateTableName,
@@ -57,7 +115,7 @@ func Init(ctx context.Context, r io.Reader, s InitSettings) io.Reader {
 									R: []byte{' '},
 								},
 							},
-							DataHandler: nil,
+							DataHandler: dhSecurityCopy,
 						},
 						{
 							Name: stateCreateTableName,
@@ -91,7 +149,7 @@ func Init(ctx context.Context, r io.Reader, s InitSettings) io.Reader {
 				stateCreateTableTail: {
 					NextStates: []fsm.NextState{
 						{
-							Name: stateCopySearch,
+							Name: stateInit,
 							Switch: fsm.Switch{
 								Trigger: []byte(");"),
 								Delimiters: fsm.Delimiters{
@@ -139,14 +197,14 @@ func Init(ctx context.Context, r io.Reader, s InitSettings) io.Reader {
 							Switch: fsm.Switch{
 								Trigger: []byte(";\n"),
 							},
-							DataHandler: nil,
+							DataHandler: dhSecurityNil,
 						},
 					},
 				},
 				stateTableValues: {
 					NextStates: []fsm.NextState{
 						{
-							Name: stateCopySearch,
+							Name: stateInit,
 							Switch: fsm.Switch{
 								Trigger: []byte("\\."),
 								Delimiters: fsm.Delimiters{
@@ -155,7 +213,7 @@ func Init(ctx context.Context, r io.Reader, s InitSettings) io.Reader {
 								},
 								Escape: false,
 							},
-							DataHandler: nil,
+							DataHandler: dhSecurityNil,
 						},
 						{
 							Name: stateTableValues,

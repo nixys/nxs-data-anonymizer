@@ -13,10 +13,7 @@ type column struct {
 type ColumnType string
 
 const (
-	ColumnTypeNone   ColumnType = "none"
-	ColumnTypeString ColumnType = "string"
-	ColumnTypeBinary ColumnType = "binary"
-	ColumnTypeNum    ColumnType = "numeric"
+	ColumnTypeNone ColumnType = "none"
 )
 
 func (c ColumnType) String() string {

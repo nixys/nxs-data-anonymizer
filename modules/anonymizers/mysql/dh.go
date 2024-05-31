@@ -224,9 +224,9 @@ func rowDataGen(filter *relfilter.Filter) []byte {
 			out += "NULL"
 		} else {
 			switch filter.ColumnTypeGet(i) {
-			case relfilter.ColumnTypeString:
+			case columnTypeString:
 				out += fmt.Sprintf("'%s'", v.V)
-			case relfilter.ColumnTypeBinary:
+			case columnTypeBinary:
 				out += fmt.Sprintf("_binary '%s'", v.V)
 			default:
 				out += fmt.Sprintf("%s", v.V)

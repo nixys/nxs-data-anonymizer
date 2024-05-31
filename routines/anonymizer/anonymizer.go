@@ -148,7 +148,11 @@ func anonymize(st anonymizeSettings) error {
 		ar = pgsql_anonymize.Init(
 			st.c,
 			st.pr,
-			pgsql_anonymize.InitSettings{
+			pgsql_anonymize.InitOpts{
+				Security: pgsql_anonymize.SecurityOpts{
+					TablePolicy:     st.s.TablePolicy,
+					TableExceptions: st.s.TableExceptions,
+				},
 				Rules: st.rs,
 			},
 		)
