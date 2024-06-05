@@ -285,6 +285,65 @@ Filters description for specified table.
 | `tables`      | String | No       | `pass`      | Security policy for tables. If value `skip` is used all undescribed tables in config will be skipped while anonymization |
 | `columns`      | String | No       | `pass`      | Security policy for columns. If value `randomize` is used all undescribed columns in config will be randomized (with respect to types) while anonymization |
 
+_Values to masquerade a columns in accordance with the types see below._
+
+**PgSQL:**
+
+| Type | Value to masquerade |
+|---|:---:|
+| `smallint`    | `0` |
+| `integer`     | `0` |
+| `bigint`      | `0` |
+| `smallserial` | `0` |
+| `serial`      | `0` |
+| `bigserial`   | `0` |
+| `decimal`     | `0.0` |
+| `numeric`     | `0.0` |
+| `real`        | `0.0` |
+| `double`      | `0.0` |
+| `character`   | `randomized string data` |
+| `bpchar`      | `randomized string data` |
+| `text`        | `randomized string data` |
+
+**MySQL:**
+
+| Type | Value to masquerade |
+|---|:---:|
+| `bit` |              `0` |
+| `bool` |             `0` |
+| `boolean` |          `0` |
+| `tinyint` |          `0` |
+| `smallint` |         `0` |
+| `mediumint` |        `0` |
+| `int` |              `0` |
+| `integer` |          `0` |
+| `bigint` |           `0` |
+| `float` |            `0` |
+| `double` |           `0` |
+| `double precision` | `0` |
+| `decimal` |          `0` |
+| `dec` |              `0` |
+| `char` |       `randomized string data` | 
+| `varchar` |    `randomized string data` | 
+| `tinytext` |   `randomized string data` | 
+| `text` |       `randomized string data` | 
+| `mediumtext` | `randomized string data` | 
+| `longtext` |   `randomized string data` | 
+| `enum` |       `randomized string data` | 
+| `set` |        `randomized string data` | 
+| `date` |       `randomized string data` | 
+| `datetime` |   `randomized string data` | 
+| `timestamp` |  `randomized string data` | 
+| `time` |       `randomized string data` | 
+| `year` |       `randomized string data` | 
+| `json` |       `randomized string data` |
+| `binary` |     `cmFuZG9taXplZCBiaW5hcnkgZGF0YQo=` |
+| `varbinary` |  `cmFuZG9taXplZCBiaW5hcnkgZGF0YQo=` |
+| `tinyblob` |   `cmFuZG9taXplZCBiaW5hcnkgZGF0YQo=` |
+| `blob` |       `cmFuZG9taXplZCBiaW5hcnkgZGF0YQo=` |
+| `mediumblob` | `cmFuZG9taXplZCBiaW5hcnkgZGF0YQo=` |
+| `longblob` |   `cmFuZG9taXplZCBiaW5hcnkgZGF0YQo=` |
+
 ###### Exceptions settings
 
 | Option         | Type   | Required | Default value | Description                                                      |
