@@ -145,7 +145,17 @@ func anonymize(st anonymizeSettings) error {
 			},
 		)
 	case ctx.DBTypePgSQL:
-		ar = pgsql_anonymize.Init(st.c, st.pr, st.rs)
+		ar = pgsql_anonymize.Init(
+			st.c,
+			st.pr,
+			pgsql_anonymize.InitOpts{
+				Security: pgsql_anonymize.SecurityOpts{
+					TablePolicy:     st.s.TablePolicy,
+					TableExceptions: st.s.TableExceptions,
+				},
+				Rules: st.rs,
+			},
+		)
 	default:
 
 		st.l.WithFields(logrus.Fields{

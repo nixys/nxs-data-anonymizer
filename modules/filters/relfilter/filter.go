@@ -63,24 +63,6 @@ type rule struct {
 	cr ColumnRule
 }
 
-var RandomizeTypesDefault = map[ColumnType]ColumnRule{
-	ColumnTypeBinary: {
-		Type:   misc.ValueTypeTemplate,
-		Value:  "cmFuZG9taXplZCBiaW5hcnkgZGF0YQo=",
-		Unique: false,
-	},
-	ColumnTypeNum: {
-		Type:   misc.ValueTypeTemplate,
-		Value:  "0",
-		Unique: false,
-	},
-	ColumnTypeString: {
-		Type:   misc.ValueTypeTemplate,
-		Value:  "randomized string data",
-		Unique: false,
-	},
-}
-
 func Init(rules Rules) *Filter {
 	return &Filter{
 		rules: rules,

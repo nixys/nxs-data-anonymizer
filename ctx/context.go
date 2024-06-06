@@ -6,6 +6,9 @@ import (
 	"os"
 	"time"
 
+	mysql_anonymize "github.com/nixys/nxs-data-anonymizer/modules/anonymizers/mysql"
+	pgsql_anonymize "github.com/nixys/nxs-data-anonymizer/modules/anonymizers/pgsql"
+
 	"github.com/nixys/nxs-data-anonymizer/ds/mysql"
 	"github.com/nixys/nxs-data-anonymizer/misc"
 	"github.com/nixys/nxs-data-anonymizer/modules/filters/relfilter"
@@ -134,7 +137,12 @@ func AppCtxInit() (any, error) {
 	c.Rules.Tables = make(map[string]relfilter.TableRules)
 
 	if misc.SecurityPolicyColumnsTypeFromString(conf.Security.Policy.Columns) == misc.SecurityPolicyColumnsRandomize {
-		c.Rules.RandomizeTypes = relfilter.RandomizeTypesDefault
+		switch args.DBType {
+		case DBTypeMySQL:
+			c.Rules.RandomizeTypes = mysql_anonymize.RandomizeTypesDefault
+		case DBTypePgSQL:
+			c.Rules.RandomizeTypes = pgsql_anonymize.RandomizeTypesDefault
+		}
 	}
 
 	for t, f := range conf.Filters {

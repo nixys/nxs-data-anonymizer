@@ -42,50 +42,74 @@ type securityCtx struct {
 	tableExceptions map[string]any
 }
 
+const (
+	columnTypeString relfilter.ColumnType = "string"
+	columnTypeNum    relfilter.ColumnType = "numeric"
+	columnTypeBinary relfilter.ColumnType = "binary"
+)
+
 var typeKeys = map[string]relfilter.ColumnType{
 
 	// Special
 	"generated": relfilter.ColumnTypeNone,
 
 	// Strings
-	"char":       relfilter.ColumnTypeString,
-	"varchar":    relfilter.ColumnTypeString,
-	"tinytext":   relfilter.ColumnTypeString,
-	"text":       relfilter.ColumnTypeString,
-	"mediumtext": relfilter.ColumnTypeString,
-	"longtext":   relfilter.ColumnTypeString,
-	"enum":       relfilter.ColumnTypeString,
-	"set":        relfilter.ColumnTypeString,
-	"date":       relfilter.ColumnTypeString,
-	"datetime":   relfilter.ColumnTypeString,
-	"timestamp":  relfilter.ColumnTypeString,
-	"time":       relfilter.ColumnTypeString,
-	"year":       relfilter.ColumnTypeString,
-	"json":       relfilter.ColumnTypeString,
+	"char":       columnTypeString,
+	"varchar":    columnTypeString,
+	"tinytext":   columnTypeString,
+	"text":       columnTypeString,
+	"mediumtext": columnTypeString,
+	"longtext":   columnTypeString,
+	"enum":       columnTypeString,
+	"set":        columnTypeString,
+	"date":       columnTypeString,
+	"datetime":   columnTypeString,
+	"timestamp":  columnTypeString,
+	"time":       columnTypeString,
+	"year":       columnTypeString,
+	"json":       columnTypeString,
 
 	// Numeric
-	"bit":              relfilter.ColumnTypeNum,
-	"bool":             relfilter.ColumnTypeNum,
-	"boolean":          relfilter.ColumnTypeNum,
-	"tinyint":          relfilter.ColumnTypeNum,
-	"smallint":         relfilter.ColumnTypeNum,
-	"mediumint":        relfilter.ColumnTypeNum,
-	"int":              relfilter.ColumnTypeNum,
-	"integer":          relfilter.ColumnTypeNum,
-	"bigint":           relfilter.ColumnTypeNum,
-	"float":            relfilter.ColumnTypeNum,
-	"double":           relfilter.ColumnTypeNum,
-	"double precision": relfilter.ColumnTypeNum,
-	"decimal":          relfilter.ColumnTypeNum,
-	"dec":              relfilter.ColumnTypeNum,
+	"bit":              columnTypeNum,
+	"bool":             columnTypeNum,
+	"boolean":          columnTypeNum,
+	"tinyint":          columnTypeNum,
+	"smallint":         columnTypeNum,
+	"mediumint":        columnTypeNum,
+	"int":              columnTypeNum,
+	"integer":          columnTypeNum,
+	"bigint":           columnTypeNum,
+	"float":            columnTypeNum,
+	"double":           columnTypeNum,
+	"double precision": columnTypeNum,
+	"decimal":          columnTypeNum,
+	"dec":              columnTypeNum,
 
 	// Binary
-	"binary":     relfilter.ColumnTypeBinary,
-	"varbinary":  relfilter.ColumnTypeBinary,
-	"tinyblob":   relfilter.ColumnTypeBinary,
-	"blob":       relfilter.ColumnTypeBinary,
-	"mediumblob": relfilter.ColumnTypeBinary,
-	"longblob":   relfilter.ColumnTypeBinary,
+	"binary":     columnTypeBinary,
+	"varbinary":  columnTypeBinary,
+	"tinyblob":   columnTypeBinary,
+	"blob":       columnTypeBinary,
+	"mediumblob": columnTypeBinary,
+	"longblob":   columnTypeBinary,
+}
+
+var RandomizeTypesDefault = map[relfilter.ColumnType]relfilter.ColumnRule{
+	columnTypeBinary: {
+		Type:   misc.ValueTypeTemplate,
+		Value:  "cmFuZG9taXplZCBiaW5hcnkgZGF0YQo=",
+		Unique: false,
+	},
+	columnTypeNum: {
+		Type:   misc.ValueTypeTemplate,
+		Value:  "0",
+		Unique: false,
+	},
+	columnTypeString: {
+		Type:   misc.ValueTypeTemplate,
+		Value:  "randomized string data",
+		Unique: false,
+	},
 }
 
 func userCtxInit(s InitSettings) *userCtx {
