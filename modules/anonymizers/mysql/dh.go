@@ -9,16 +9,16 @@ import (
 	"github.com/nixys/nxs-data-anonymizer/modules/filters/relfilter"
 )
 
-func dhSecurityCreateTable(usrCtx any, deferred, token []byte) ([]byte, error) {
+func dhSecurityInsertInto(usrCtx any, deferred, token []byte) ([]byte, error) {
 
 	uctx := usrCtx.(*userCtx)
 
-	uctx.security.tmpBuf = append(uctx.security.tmpBuf, token...)
+	uctx.security.tmpBuf = token
 
 	return deferred, nil
 }
 
-func dhSecurityCreateTableName(usrCtx any, deferred, token []byte) ([]byte, error) {
+func dhSecurityInsertIntoTableNameSearch(usrCtx any, deferred, token []byte) ([]byte, error) {
 
 	uctx := usrCtx.(*userCtx)
 
@@ -42,37 +42,14 @@ func dhSecurityNil(usrCtx any, deferred, token []byte) ([]byte, error) {
 func dhCreateTableName(usrCtx any, deferred, token []byte) ([]byte, error) {
 
 	uctx := usrCtx.(*userCtx)
+	uctx.filter.TableCreate(string(deferred))
 
-	tn := string(deferred)
-
-	// Check table pass through security rules
-	if !securityPolicyCheck(uctx, tn) {
-
-		// If not: table will be skipped from result dump
-
-		uctx.security.isSkip = true
-		uctx.security.tmpBuf = []byte{}
-		return []byte{}, nil
-	}
-
-	uctx.filter.TableCreate(tn)
-
-	d := append(uctx.security.tmpBuf, append(deferred, token...)...)
-
-	uctx.security.isSkip = false
-	uctx.security.tmpBuf = []byte{}
-
-	return d, nil
+	return append(deferred, token...), nil
 }
 
 func dhCreateTableFieldName(usrCtx any, deferred, token []byte) ([]byte, error) {
 
 	uctx := usrCtx.(*userCtx)
-
-	if uctx.security.isSkip == true {
-		return []byte{}, nil
-	}
-
 	uctx.column.name = string(deferred)
 
 	return append(deferred, token...), nil
@@ -81,10 +58,6 @@ func dhCreateTableFieldName(usrCtx any, deferred, token []byte) ([]byte, error) 
 func dhCreateTableColumnTypeAdd(usrCtx any, deferred, token []byte) ([]byte, error) {
 
 	uctx := usrCtx.(*userCtx)
-
-	if uctx.security.isSkip == true {
-		return []byte{}, nil
-	}
 
 	for k, v := range typeKeys {
 		if k == "generated" {
@@ -100,20 +73,12 @@ func dhCreateTableColumnTypeAdd(usrCtx any, deferred, token []byte) ([]byte, err
 		}
 	}
 
-	if uctx.column.columnType == "" {
-		fmt.Println("token:", token)
-	}
-
 	return append(deferred, token...), nil
 }
 
 func dhCreateTableColumnAdd(usrCtx any, deferred, token []byte) ([]byte, error) {
 
 	uctx := usrCtx.(*userCtx)
-
-	if uctx.security.isSkip == true {
-		return []byte{}, nil
-	}
 
 	if uctx.column.isSkip == false {
 		uctx.filter.ColumnAdd(uctx.column.name, uctx.column.columnType)
@@ -128,16 +93,29 @@ func dhInsertIntoTableName(usrCtx any, deferred, token []byte) ([]byte, error) {
 
 	uctx := usrCtx.(*userCtx)
 
-	if uctx.security.isSkip == true {
+	tn := string(deferred)
+
+	// Check table pass through security rules
+	if !securityPolicyCheck(uctx, tn) {
+
+		// If not: table will be skipped from result dump
+
+		uctx.security.isSkip = true
+		uctx.security.tmpBuf = []byte{}
 		return []byte{}, nil
 	}
 
+	d := append(uctx.security.tmpBuf, append(deferred, token...)...)
+
+	uctx.security.isSkip = false
+	uctx.security.tmpBuf = []byte{}
+
 	// Check insert into table name
-	if bytes.Compare([]byte(uctx.filter.TableNameGet()), deferred) != 0 {
-		return append(deferred, token...), fmt.Errorf("`create` and `insert into` table names are mismatch (create table: '%s', insert into table: '%s')", uctx.filter.TableNameGet(), string(deferred))
+	if tn != uctx.filter.TableNameGet() {
+		return d, fmt.Errorf("`create` and `insert into` table names are mismatch (create table: '%s', insert into table: '%s')", uctx.filter.TableNameGet(), tn)
 	}
 
-	return append(deferred, token...), nil
+	return d, nil
 }
 
 func dhCreateTableValues(usrCtx any, deferred, token []byte) ([]byte, error) {
