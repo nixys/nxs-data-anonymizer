@@ -143,7 +143,7 @@ func Init(ctx context.Context, r io.Reader, s InitSettings) io.Reader {
 									R: []byte{' '},
 								},
 							},
-							DataHandler: dhSecurityCreateTable,
+							DataHandler: nil,
 						},
 					},
 				},
@@ -158,7 +158,7 @@ func Init(ctx context.Context, r io.Reader, s InitSettings) io.Reader {
 									R: []byte{' '},
 								},
 							},
-							DataHandler: dhSecurityCreateTableName,
+							DataHandler: nil,
 						},
 					},
 				},
@@ -169,7 +169,7 @@ func Init(ctx context.Context, r io.Reader, s InitSettings) io.Reader {
 							Switch: fsm.Switch{
 								Trigger: []byte("`"),
 							},
-							DataHandler: dhSecurityCreateTableName,
+							DataHandler: nil,
 						},
 					},
 				},
@@ -191,7 +191,7 @@ func Init(ctx context.Context, r io.Reader, s InitSettings) io.Reader {
 							Switch: fsm.Switch{
 								Trigger: []byte("("),
 							},
-							DataHandler: dhSecurityNil,
+							DataHandler: nil,
 						},
 					},
 				},
@@ -207,7 +207,7 @@ func Init(ctx context.Context, r io.Reader, s InitSettings) io.Reader {
 									R: []byte{' '},
 								},
 							},
-							DataHandler: dhSecurityNil,
+							DataHandler: nil,
 						},
 						{
 							// Skip table keys description
@@ -219,7 +219,7 @@ func Init(ctx context.Context, r io.Reader, s InitSettings) io.Reader {
 									R: []byte{' '},
 								},
 							},
-							DataHandler: dhSecurityNil,
+							DataHandler: nil,
 						},
 						{
 							// Skip table keys description
@@ -231,7 +231,7 @@ func Init(ctx context.Context, r io.Reader, s InitSettings) io.Reader {
 									R: []byte{' '},
 								},
 							},
-							DataHandler: dhSecurityNil,
+							DataHandler: nil,
 						},
 						{
 							// Skip table keys description
@@ -243,7 +243,7 @@ func Init(ctx context.Context, r io.Reader, s InitSettings) io.Reader {
 									R: []byte{' '},
 								},
 							},
-							DataHandler: dhSecurityNil,
+							DataHandler: nil,
 						},
 						{
 							// Skip table keys description
@@ -255,14 +255,14 @@ func Init(ctx context.Context, r io.Reader, s InitSettings) io.Reader {
 									R: []byte{' '},
 								},
 							},
-							DataHandler: dhSecurityNil,
+							DataHandler: nil,
 						},
 						{
 							Name: stateFieldsDescriptionName,
 							Switch: fsm.Switch{
 								Trigger: []byte("`"),
 							},
-							DataHandler: dhSecurityNil,
+							DataHandler: nil,
 						},
 					},
 				},
@@ -276,7 +276,7 @@ func Init(ctx context.Context, r io.Reader, s InitSettings) io.Reader {
 									R: []byte{'\n'},
 								},
 							},
-							DataHandler: dhSecurityNil,
+							DataHandler: nil,
 						},
 						{
 							Name: statefFieldsDescriptionBlockEnd,
@@ -286,7 +286,7 @@ func Init(ctx context.Context, r io.Reader, s InitSettings) io.Reader {
 									L: []byte{'\n'},
 								},
 							},
-							DataHandler: dhSecurityNil,
+							DataHandler: nil,
 						},
 					},
 				},
@@ -363,7 +363,7 @@ func Init(ctx context.Context, r io.Reader, s InitSettings) io.Reader {
 									R: []byte{'\n'},
 								},
 							},
-							DataHandler: dhSecurityNil,
+							DataHandler: nil,
 						},
 					},
 				},
@@ -378,37 +378,22 @@ func Init(ctx context.Context, r io.Reader, s InitSettings) io.Reader {
 									R: []byte{' '},
 								},
 							},
-							DataHandler: dhSecurityCreateTable,
+							DataHandler: nil,
 						},
 						{
-							Name: stateInsertInto,
+							Name: stateInsertIntoTableNameSearch,
 							Switch: fsm.Switch{
-								Trigger: []byte("INSERT"),
+								Trigger: []byte("INSERT INTO"),
 								Delimiters: fsm.Delimiters{
 									L: []byte{'\n'},
 									R: []byte{' '},
 								},
 							},
-							DataHandler: dhSecurityNil,
+							DataHandler: dhSecurityInsertInto,
 						},
 					},
 				},
 
-				stateInsertInto: {
-					NextStates: []fsm.NextState{
-						{
-							Name: stateInsertIntoTableNameSearch,
-							Switch: fsm.Switch{
-								Trigger: []byte("INTO"),
-								Delimiters: fsm.Delimiters{
-									L: []byte{' '},
-									R: []byte{' '},
-								},
-							},
-							DataHandler: dhSecurityNil,
-						},
-					},
-				},
 				stateInsertIntoTableNameSearch: {
 					NextStates: []fsm.NextState{
 						{
@@ -416,7 +401,7 @@ func Init(ctx context.Context, r io.Reader, s InitSettings) io.Reader {
 							Switch: fsm.Switch{
 								Trigger: []byte("`"),
 							},
-							DataHandler: dhSecurityNil,
+							DataHandler: dhSecurityInsertIntoTableNameSearch,
 						},
 					},
 				},

@@ -14,7 +14,6 @@ var (
 	stateFieldDescriptionTailSkip   = fsm.StateName("fields description tail skip")
 	statefFieldsDescriptionBlockEnd = fsm.StateName("fields description block end")
 	stateSomeIntermediateState      = fsm.StateName("some intermediate state")
-	stateInsertInto                 = fsm.StateName("insert into")
 	stateInsertIntoTableNameSearch  = fsm.StateName("insert into table name search")
 	stateInsertIntoTableName        = fsm.StateName("insert into table name")
 	stateValuesSearch               = fsm.StateName("values search")
