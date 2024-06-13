@@ -8,6 +8,7 @@ import (
 
 	mysql_anonymize "github.com/nixys/nxs-data-anonymizer/modules/anonymizers/mysql"
 	pgsql_anonymize "github.com/nixys/nxs-data-anonymizer/modules/anonymizers/pgsql"
+	progressreader "github.com/nixys/nxs-data-anonymizer/modules/progress_reader"
 
 	"github.com/nixys/nxs-data-anonymizer/ds/mysql"
 	"github.com/nixys/nxs-data-anonymizer/misc"
@@ -19,13 +20,12 @@ import (
 
 // Ctx defines application custom context
 type Ctx struct {
-	Log      *logrus.Logger
-	Input    io.Reader
-	Output   io.Writer
-	Rules    relfilter.Rules
-	Progress progressCtx
-	Security SecurityCtx
-	DB       DBCtx
+	Log        *logrus.Logger
+	Output     io.Writer
+	Progress   progressCtx
+	DB         DBCtx
+	Anonymizer misc.Anonymizer
+	PR         *progressreader.ProgressReader
 }
 
 type DBCtx struct {
@@ -61,6 +61,8 @@ type SecurityCtx struct {
 // Init initiates application custom context
 func AppCtxInit() (any, error) {
 
+	var ir io.Reader
+
 	c := &Ctx{}
 
 	args, err := ArgsRead()
@@ -81,9 +83,9 @@ func AppCtxInit() (any, error) {
 	}
 
 	if args.Input == nil {
-		c.Input = os.Stdin
+		ir = os.Stdin
 	} else {
-		c.Input, err = os.Open(*args.Input)
+		ir, err = os.Open(*args.Input)
 		if err != nil {
 			c.Log.WithFields(logrus.Fields{
 				"details": err,
@@ -109,7 +111,7 @@ func AppCtxInit() (any, error) {
 		Type:    args.DBType,
 	}
 
-	// Connect to MySQL if necessary
+	// DEPRECATED: Connect to MySQL if necessary
 	if conf.MySQL != nil {
 		m, err := mysql.Connect(mysql.Settings{
 			Host:     conf.MySQL.Host,
@@ -134,55 +136,84 @@ func AppCtxInit() (any, error) {
 		}
 	}
 
-	c.Rules.Tables = make(map[string]relfilter.TableRules)
+	c.PR = progressreader.Init(ir)
 
-	if misc.SecurityPolicyColumnsTypeFromString(conf.Security.Policy.Columns) == misc.SecurityPolicyColumnsRandomize {
-		switch args.DBType {
-		case DBTypeMySQL:
-			c.Rules.RandomizeTypes = mysql_anonymize.RandomizeTypesDefault
-		case DBTypePgSQL:
-			c.Rules.RandomizeTypes = pgsql_anonymize.RandomizeTypesDefault
-		}
-	}
-
-	for t, f := range conf.Filters {
-
-		c.Rules.Tables[t] = relfilter.TableRules{
-			Columns: func() map[string]relfilter.ColumnRule {
-				cc := make(map[string]relfilter.ColumnRule)
-				for c, cf := range f.Columns {
-					cc[c] = relfilter.ColumnRule{
-						Type:   misc.ValueTypeFromString(cf.Type),
-						Value:  cf.Value,
-						Unique: cf.Unique,
-					}
-				}
-				return cc
-			}(),
-		}
-	}
-
-	c.Rules.Defaults = relfilter.TableRules{
-		Columns: func() map[string]relfilter.ColumnRule {
-			cc := make(map[string]relfilter.ColumnRule)
-			for c, cf := range conf.Security.Defaults.Columns {
-				cc[c] = relfilter.ColumnRule{
-					Type:   misc.ValueTypeFromString(cf.Type),
-					Value:  cf.Value,
-					Unique: cf.Unique,
+	TableRules := func() map[string]map[string]relfilter.ColumnRuleOpts {
+		tables := make(map[string]map[string]relfilter.ColumnRuleOpts)
+		for t, cs := range conf.Filters {
+			columns := make(map[string]relfilter.ColumnRuleOpts)
+			for c, f := range cs.Columns {
+				columns[c] = relfilter.ColumnRuleOpts{
+					Type:   misc.ValueType(f.Type),
+					Value:  f.Value,
+					Unique: f.Unique,
 				}
 			}
-			return cc
-		}(),
-	}
-
-	c.Rules.ExceptionColumns = func() map[string]any {
-		v := make(map[string]any)
-		for _, e := range conf.Security.Exceptions.Columns {
-			v[e] = nil
+			tables[t] = columns
 		}
-		return v
+		return tables
 	}()
+
+	DefaultRules := func() map[string]relfilter.ColumnRuleOpts {
+		cc := make(map[string]relfilter.ColumnRuleOpts)
+		for c, cf := range conf.Security.Defaults.Columns {
+			cc[c] = relfilter.ColumnRuleOpts{
+				Type:   misc.ValueTypeFromString(cf.Type),
+				Value:  cf.Value,
+				Unique: cf.Unique,
+			}
+		}
+		return cc
+	}()
+
+	switch args.DBType {
+	case DBTypeMySQL:
+		c.Anonymizer, err = mysql_anonymize.Init(
+			c.PR,
+			mysql_anonymize.InitOpts{
+				Security: mysql_anonymize.SecurityOpts{
+					TablesPolicy:    misc.SecurityPolicyTablesType(conf.Security.Policy.Tables),
+					ColumnsPolicy:   misc.SecurityPolicyColumnsTypeFromString(conf.Security.Policy.Columns),
+					TableExceptions: conf.Security.Exceptions.Tables,
+				},
+				Rules: mysql_anonymize.RulesOpts{
+					TableRules:       TableRules,
+					DefaultRules:     DefaultRules,
+					ExceptionColumns: conf.Security.Exceptions.Columns,
+					//TypeRuleCustom: ,
+				},
+			},
+		)
+		if err != nil {
+			c.Log.WithFields(logrus.Fields{
+				"details": err,
+			}).Errorf("ctx init")
+			return nil, err
+		}
+	case DBTypePgSQL:
+		c.Anonymizer, err = pgsql_anonymize.Init(
+			c.PR,
+			pgsql_anonymize.InitOpts{
+				Security: pgsql_anonymize.SecurityOpts{
+					TablesPolicy:    misc.SecurityPolicyTablesType(conf.Security.Policy.Tables),
+					ColumnsPolicy:   misc.SecurityPolicyColumnsTypeFromString(conf.Security.Policy.Columns),
+					TableExceptions: conf.Security.Exceptions.Tables,
+				},
+				Rules: pgsql_anonymize.RulesOpts{
+					TableRules:       TableRules,
+					DefaultRules:     DefaultRules,
+					ExceptionColumns: conf.Security.Exceptions.Columns,
+					//TypeRuleCustom: ,
+				},
+			},
+		)
+		if err != nil {
+			c.Log.WithFields(logrus.Fields{
+				"details": err,
+			}).Errorf("ctx init")
+			return nil, err
+		}
+	}
 
 	// Progress settings
 	c.Progress.Humanize = conf.Progress.Humanize
@@ -193,17 +224,6 @@ func AppCtxInit() (any, error) {
 			"details": err,
 		}).Errorf("ctx init")
 		return nil, err
-	}
-
-	c.Security = SecurityCtx{
-		TablePolicy: misc.SecurityPolicyTablesTypeFromString(conf.Security.Policy.Tables),
-		TableExceptions: func() map[string]any {
-			v := make(map[string]any)
-			for _, e := range conf.Security.Exceptions.Tables {
-				v[e] = nil
-			}
-			return v
-		}(),
 	}
 
 	return c, nil

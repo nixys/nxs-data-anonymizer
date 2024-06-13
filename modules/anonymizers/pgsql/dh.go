@@ -3,6 +3,7 @@ package pgsql_anonymize
 import (
 	"bytes"
 	"fmt"
+	"strings"
 
 	"github.com/nixys/nxs-data-anonymizer/misc"
 	"github.com/nixys/nxs-data-anonymizer/modules/filters/relfilter"
@@ -42,23 +43,23 @@ func dhCreateTableDesc(usrCtx any, deferred, token []byte) ([]byte, error) {
 
 	uctx := usrCtx.(*userCtx)
 
-	clmns := make(map[string]relfilter.ColumnType)
+	clmns := make(map[string]string)
 
 	ss := bytes.Split(deferred, []byte{'\n'})
 
-	for _, s := range ss {
+	for _, v := range ss {
 
-		s = bytes.TrimSuffix(bytes.TrimSpace(s), []byte{','})
+		s := strings.TrimSuffix(strings.TrimSpace(string(v)), ",")
 
 		if len(s) > 0 {
 
-			u := bytes.SplitN(s, []byte{' '}, 3)
+			u := strings.SplitN(s, " ", 2)
 
 			// If column type does not specified within the dump
 			if len(u) < 2 {
-				clmns[string(u[0])] = relfilter.ColumnTypeNone
+				clmns[u[0]] = ""
 			} else {
-				clmns[string(u[0])] = columnType(string(u[1]))
+				clmns[u[0]] = u[1]
 			}
 		}
 	}
@@ -105,12 +106,10 @@ func dhFieldName(usrCtx any, deferred, token []byte) ([]byte, error) {
 		return []byte{}, nil
 	}
 
-	t, b := uctx.tables[uctx.filter.TableNameGet()][string(fname)]
-	if b == false {
-		t = relfilter.ColumnTypeNone
-	}
-
-	uctx.filter.ColumnAdd(string(fname), t)
+	uctx.filter.ColumnAdd(
+		string(fname),
+		uctx.tables[uctx.filter.TableNameGet()][string(fname)],
+	)
 
 	return append(deferred, token...), nil
 }
@@ -182,7 +181,7 @@ func rowDataGen(filter *relfilter.Filter) []byte {
 func securityPolicyCheck(uctx *userCtx, tname string) bool {
 
 	// Continue if security policy is `skip`
-	if uctx.security.tablePolicy != misc.SecurityPolicyTablesSkip {
+	if uctx.security.tablesPolicy != misc.SecurityPolicyTablesSkip {
 		return true
 	}
 

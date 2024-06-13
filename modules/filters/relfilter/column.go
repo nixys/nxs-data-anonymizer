@@ -6,18 +6,8 @@ type columns struct {
 }
 
 type column struct {
-	n string
-	t ColumnType
-}
-
-type ColumnType string
-
-const (
-	ColumnTypeNone ColumnType = "none"
-)
-
-func (c ColumnType) String() string {
-	return string(c)
+	n       string
+	rawType string
 }
 
 func columnsInit() columns {
@@ -27,22 +17,22 @@ func columnsInit() columns {
 	}
 }
 
-func (c *columns) add(name string, t ColumnType) {
+func (c *columns) add(name string, rt string) {
 
 	v := column{
-		n: name,
-		t: t,
+		n:       name,
+		rawType: rt,
 	}
 
 	c.cc = append(c.cc, &v)
 	c.m[name] = &v
 }
 
-func (c *columns) typeGetByIndex(index int) ColumnType {
+func (c *columns) getNameByIndex(index int) string {
 	if index >= len(c.cc) {
-		return ColumnTypeNone
+		return ""
 	}
-	return c.cc[index].t
+	return c.cc[index].n
 }
 
 func (c *columns) delByName(name string) {
