@@ -105,17 +105,6 @@ var typeKeys = map[string]columnType{
 	"LONGBLOB":   columnTypeBinary,
 }
 
-var typeRuleDefault = []relfilter.TypeRuleOpts{
-	{
-		Selector: "^int\\ ",
-		Rule: relfilter.ColumnRuleOpts{
-			Type:   misc.ValueTypeTemplate,
-			Value:  "0",
-			Unique: false,
-		},
-	},
-}
-
 func userCtxInit(s InitOpts) (*userCtx, error) {
 
 	trc := []relfilter.TypeRuleOpts{}

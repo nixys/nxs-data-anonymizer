@@ -138,7 +138,7 @@ func AppCtxInit() (any, error) {
 
 	c.PR = progressreader.Init(ir)
 
-	TableRules := func() map[string]map[string]relfilter.ColumnRuleOpts {
+	tr := func() map[string]map[string]relfilter.ColumnRuleOpts {
 		tables := make(map[string]map[string]relfilter.ColumnRuleOpts)
 		for t, cs := range conf.Filters {
 			columns := make(map[string]relfilter.ColumnRuleOpts)
@@ -154,7 +154,7 @@ func AppCtxInit() (any, error) {
 		return tables
 	}()
 
-	DefaultRules := func() map[string]relfilter.ColumnRuleOpts {
+	dr := func() map[string]relfilter.ColumnRuleOpts {
 		cc := make(map[string]relfilter.ColumnRuleOpts)
 		for c, cf := range conf.Security.Defaults.Columns {
 			cc[c] = relfilter.ColumnRuleOpts{
@@ -162,6 +162,24 @@ func AppCtxInit() (any, error) {
 				Value:  cf.Value,
 				Unique: cf.Unique,
 			}
+		}
+		return cc
+	}()
+
+	trc := func() []relfilter.TypeRuleOpts {
+		cc := []relfilter.TypeRuleOpts{}
+		for _, t := range conf.Security.Defaults.Types {
+			cc = append(
+				cc,
+				relfilter.TypeRuleOpts{
+					Selector: t.Regex,
+					Rule: relfilter.ColumnRuleOpts{
+						Type:   misc.ValueTypeFromString(t.Rule.Type),
+						Value:  t.Rule.Value,
+						Unique: t.Rule.Unique,
+					},
+				},
+			)
 		}
 		return cc
 	}()
@@ -177,10 +195,10 @@ func AppCtxInit() (any, error) {
 					TableExceptions: conf.Security.Exceptions.Tables,
 				},
 				Rules: mysql_anonymize.RulesOpts{
-					TableRules:       TableRules,
-					DefaultRules:     DefaultRules,
+					TableRules:       tr,
+					DefaultRules:     dr,
 					ExceptionColumns: conf.Security.Exceptions.Columns,
-					//TypeRuleCustom: ,
+					TypeRuleCustom:   trc,
 				},
 			},
 		)
@@ -200,10 +218,10 @@ func AppCtxInit() (any, error) {
 					TableExceptions: conf.Security.Exceptions.Tables,
 				},
 				Rules: pgsql_anonymize.RulesOpts{
-					TableRules:       TableRules,
-					DefaultRules:     DefaultRules,
+					TableRules:       tr,
+					DefaultRules:     dr,
 					ExceptionColumns: conf.Security.Exceptions.Columns,
-					//TypeRuleCustom: ,
+					TypeRuleCustom:   trc,
 				},
 			},
 		)

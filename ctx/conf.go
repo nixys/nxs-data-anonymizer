@@ -36,7 +36,7 @@ type columnFilterConf struct {
 type securityConf struct {
 	Policy     securityPolicyConf     `conf:"policy"`
 	Exceptions securityExceptionsConf `conf:"exceptions"`
-	Defaults   filterConf             `conf:"defaults"`
+	Defaults   securityDefaultsConf   `conf:"defaults"`
 }
 
 type securityPolicyConf struct {
@@ -47,6 +47,16 @@ type securityPolicyConf struct {
 type securityExceptionsConf struct {
 	Tables  []string `conf:"tables"`
 	Columns []string `conf:"columns"`
+}
+
+type securityDefaultsConf struct {
+	Columns map[string]columnFilterConf `conf:"columns"`
+	Types   []securityDefaultsTypeConf  `conf:"types"`
+}
+
+type securityDefaultsTypeConf struct {
+	Regex string           `conf:"regex" conf_extraopts:"required"`
+	Rule  columnFilterConf `conf:"rule" conf_extraopts:"required"`
 }
 
 type mysqlConf struct {

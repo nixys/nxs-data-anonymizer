@@ -49,17 +49,6 @@ type securityCtx struct {
 	tableExceptions map[string]any
 }
 
-var typeRuleDefault = []relfilter.TypeRuleOpts{
-	{
-		Selector: "^integer\\ ",
-		Rule: relfilter.ColumnRuleOpts{
-			Type:   misc.ValueTypeTemplate,
-			Value:  "0",
-			Unique: false,
-		},
-	},
-}
-
 func userCtxInit(s InitOpts) (*userCtx, error) {
 
 	trc := []relfilter.TypeRuleOpts{}

@@ -237,33 +237,43 @@ func (filter *Filter) Apply() error {
 		}
 
 		// Check custom type rule for column
-		for _, r := range filter.rules.typeRuleCustom {
-			if r.Rgx.Match([]byte(c.rawType)) {
-				rls = append(
-					rls,
-					applyRule{
-						c:  c,
-						i:  i,
-						cr: r.Rule,
-					},
-				)
-				continue
+		if b := func() bool {
+			for _, r := range filter.rules.typeRuleCustom {
+				if r.Rgx.Match([]byte(c.rawType)) {
+					rls = append(
+						rls,
+						applyRule{
+							c:  c,
+							i:  i,
+							cr: r.Rule,
+						},
+					)
+					return true
+				}
 			}
+			return false
+		}(); b {
+			continue
 		}
 
 		// Check default type rule for column
-		for _, r := range filter.rules.typeRuleDefault {
-			if r.Rgx.Match([]byte(c.rawType)) {
-				rls = append(
-					rls,
-					applyRule{
-						c:  c,
-						i:  i,
-						cr: r.Rule,
-					},
-				)
-				continue
+		if b := func() bool {
+			for _, r := range filter.rules.typeRuleDefault {
+				if r.Rgx.Match([]byte(c.rawType)) {
+					rls = append(
+						rls,
+						applyRule{
+							c:  c,
+							i:  i,
+							cr: r.Rule,
+						},
+					)
+					return true
+				}
 			}
+			return false
+		}(); b {
+			continue
 		}
 
 		// Other rules if required
