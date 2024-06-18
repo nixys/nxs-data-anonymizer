@@ -270,6 +270,24 @@ Filters description for specified table.
 | `value`       | String | Yes      | -             | The value to be used to replace at every cell in specified column. In accordance with the `type` this value may be either `Go template` or `command`. See below for details|
 | `unique`      | Bool   | No       | `false`       | If true checks the generated value for cell is unique whole the column |
 
+**Go template**
+
+To anonymize a database fields you may use a Go template with the [Sprig template library's](https://masterminds.github.io/sprig/) functions. You may also use values of other columns in the rules for same row (with values before substitutions).
+
+Additional filter functions:
+- `null`: set a field value to `NULL`
+- `isNull`: compare a field value with `NULL`
+
+**Command**
+
+To anonymize a database fields you may use a commands (scripts or binaries) with any logic you need. The command's concept has following properties:
+- The command's `stdout` will be used as a new value for the anonymized field
+- Command must return zero exit code, otherwise nxs-data-anonymizer will falls with error (in this case `stderr` will be used as an error text)
+- Environment variables with the row data are available within the command:
+  - `ENVVARTABLE`: contains a name of the filtered table
+  - `ENVVARCURCOLUMN`: contains the current column name 
+  - `ENVVARCOLUMN_{COLUMN_NAME}`: contains values (before substitutions) for all columns for the current row
+
 ##### Security settings
 
 | Option         | Type   | Required | Default value | Description                                                      |
@@ -283,7 +301,7 @@ Filters description for specified table.
 | Option         | Type   | Required | Default value | Description                                                      |
 |---             | :---:  | :---:    | :---:         |---                                                               |
 | `tables`      | String | No       | `pass`      | Security policy for tables. If value `skip` is used all undescribed tables in config will be skipped while anonymization |
-| `columns`      | String | No       | `pass`      | Security policy for columns. If value `randomize` is used all undescribed columns in config will be randomized (with respect to types) while anonymization |
+| `columns`      | String | No       | `pass`      | Security policy for columns. If value `randomize` is used all undescribed columns in config will be randomized (with default rules in accordance to types) while anonymization |
 
 _Values to masquerade a columns in accordance with the types see below._
 
@@ -356,25 +374,14 @@ _Values to masquerade a columns in accordance with the types see below._
 | Option         | Type   | Required | Default value | Description                                                      |
 |---             | :---:  | :---:    | :---:         |---                                                               |
 | `columns`      | Map of Filters | No       | -      | Default filter for columns (in any table). That filters will be applied for columns with this names without described filters |
+| `types`      | Slice of [Types](#types-settings) | No       | -      | Custom filters for types (in any table). With this filter rules you may override default filters for types |
 
+###### Types settings
 
-**Go template**
-
-To anonymize a database fields you may use a Go template with the [Sprig template library's](https://masterminds.github.io/sprig/) functions. You may also use values of other columns in the rules for same row (with values before substitutions).
-
-Additional filter functions:
-- `null`: set a field value to `NULL`
-- `isNull`: compare a field value with `NULL`
-
-**Command**
-
-To anonymize a database fields you may use a commands (scripts or binaries) with any logic you need. The command's concept has following properties:
-- The command's `stdout` will be used as a new value for the anonymized field
-- Command must return zero exit code, otherwise nxs-data-anonymizer will falls with error (in this case `stderr` will be used as an error text)
-- Environment variables with the row data are available within the command:
-  - `ENVVARTABLE`: contains a name of the filtered table
-  - `ENVVARCURCOLUMN`: contains the current column name 
-  - `ENVVARCOLUMN_{COLUMN_NAME}`: contains values (before substitutions) for all columns for the current row
+| Option         | Type   | Required | Default value | Description                                                      |
+|---             | :---:  | :---:    | :---:         |---                                                               |
+| `regex`      | String | Yes       | -      | Regular expression. Will be checked for match for column data type (in `CREATE TABLE` section) |
+| `rule`      | [Columns](#columns-settings) | Yes       | -      | Rule will be applied columns with data types matched for specified regular expression |
 
 #### Example
 
