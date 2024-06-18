@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/nixys/nxs-data-anonymizer/interfaces"
 	mysql_anonymize "github.com/nixys/nxs-data-anonymizer/modules/anonymizers/mysql"
 	pgsql_anonymize "github.com/nixys/nxs-data-anonymizer/modules/anonymizers/pgsql"
 	progressreader "github.com/nixys/nxs-data-anonymizer/modules/progress_reader"
@@ -24,7 +25,7 @@ type Ctx struct {
 	Output     io.Writer
 	Progress   progressCtx
 	DB         DBCtx
-	Anonymizer misc.Anonymizer
+	Anonymizer interfaces.Anonymizer
 	PR         *progressreader.ProgressReader
 }
 

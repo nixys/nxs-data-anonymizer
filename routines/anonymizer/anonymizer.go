@@ -8,7 +8,7 @@ import (
 
 	"github.com/docker/go-units"
 	"github.com/nixys/nxs-data-anonymizer/ctx"
-	"github.com/nixys/nxs-data-anonymizer/misc"
+	"github.com/nixys/nxs-data-anonymizer/interfaces"
 	"github.com/sirupsen/logrus"
 
 	appctx "github.com/nixys/nxs-go-appctx/v3"
@@ -20,7 +20,7 @@ type anonymizeOpts struct {
 	ch chan error
 	db ctx.DBCtx
 	w  io.Writer
-	a  misc.Anonymizer
+	a  interfaces.Anonymizer
 }
 
 func Runtime(app appctx.App) error {
