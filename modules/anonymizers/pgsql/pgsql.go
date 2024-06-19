@@ -2,6 +2,7 @@ package pgsql_anonymize
 
 import (
 	"context"
+	"fmt"
 	"io"
 
 	"github.com/nixys/nxs-data-anonymizer/misc"
@@ -10,97 +11,102 @@ import (
 	fsm "github.com/nixys/nxs-go-fsm"
 )
 
+type PgSQL struct {
+	uctx         *userCtx
+	sourceReader io.Reader
+}
+
 type InitOpts struct {
 	Security SecurityOpts
-	Rules    relfilter.Rules
+	Rules    RulesOpts
+}
+
+type RulesOpts struct {
+	TableRules       map[string]map[string]relfilter.ColumnRuleOpts
+	DefaultRules     map[string]relfilter.ColumnRuleOpts
+	ExceptionColumns []string
+	TypeRuleCustom   []relfilter.TypeRuleOpts
 }
 
 type SecurityOpts struct {
-	TablePolicy     misc.SecurityPolicyTablesType
-	TableExceptions map[string]any
+	TablesPolicy    misc.SecurityPolicyTablesType
+	ColumnsPolicy   misc.SecurityPolicyColumnsType
+	TableExceptions []string
 }
 
 type userCtx struct {
-	filter *relfilter.Filter
-
+	filter   *relfilter.Filter
+	tn       *string
 	security securityCtx
-
-	tn     *string
-	tables map[string]map[string]relfilter.ColumnType
+	tables   map[string]map[string]string
 }
 
 type securityCtx struct {
 	tmpBuf []byte
 	isSkip bool
 
-	tablePolicy     misc.SecurityPolicyTablesType
+	tablesPolicy    misc.SecurityPolicyTablesType
 	tableExceptions map[string]any
 }
 
-const (
-	columnTypeString relfilter.ColumnType = "string"
-	columnTypeInt    relfilter.ColumnType = "integer"
-	columnTypeFloat  relfilter.ColumnType = "float"
-)
+func userCtxInit(s InitOpts) (*userCtx, error) {
 
-var typeKeys = map[string]relfilter.ColumnType{
-
-	// Integer
-	"smallint":    columnTypeInt,
-	"integer":     columnTypeInt,
-	"bigint":      columnTypeInt,
-	"smallserial": columnTypeInt,
-	"serial":      columnTypeInt,
-	"bigserial":   columnTypeInt,
-
-	// Float
-	"decimal": columnTypeFloat,
-	"numeric": columnTypeFloat,
-	"real":    columnTypeFloat,
-	"double":  columnTypeFloat,
-
-	// Strings
-	"character": columnTypeString,
-	"bpchar":    columnTypeString,
-	"text":      columnTypeString,
-}
-
-var RandomizeTypesDefault = map[relfilter.ColumnType]relfilter.ColumnRule{
-	columnTypeInt: {
-		Type:   misc.ValueTypeTemplate,
-		Value:  "0",
-		Unique: false,
-	},
-	columnTypeFloat: {
-		Type:   misc.ValueTypeTemplate,
-		Value:  "0.0",
-		Unique: false,
-	},
-	columnTypeString: {
-		Type:   misc.ValueTypeTemplate,
-		Value:  "randomized string data",
-		Unique: false,
-	},
-}
-
-func userCtxInit(s InitOpts) *userCtx {
-	return &userCtx{
-		filter: relfilter.Init(s.Rules),
-		tables: make(map[string]map[string]relfilter.ColumnType),
-		security: securityCtx{
-			tablePolicy:     s.Security.TablePolicy,
-			tableExceptions: s.Security.TableExceptions,
-		},
+	trc := []relfilter.TypeRuleOpts{}
+	trd := []relfilter.TypeRuleOpts{}
+	if s.Security.ColumnsPolicy == misc.SecurityPolicyColumnsRandomize {
+		trc = s.Rules.TypeRuleCustom
+		trd = typeRuleDefault
 	}
+
+	f, err := relfilter.Init(
+		relfilter.InitOpts{
+			TableRules:       s.Rules.TableRules,
+			DefaultRules:     s.Rules.DefaultRules,
+			ExceptionColumns: s.Rules.ExceptionColumns,
+			TypeRuleCustom:   trc,
+			TypeRuleDefault:  trd,
+		},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("user ctx init: %w", err)
+	}
+
+	return &userCtx{
+		filter: f,
+		security: securityCtx{
+			tablesPolicy: s.Security.TablesPolicy,
+			tableExceptions: func() map[string]any {
+				excs := make(map[string]any)
+				for _, e := range s.Security.TableExceptions {
+					excs[e] = nil
+				}
+				return excs
+			}(),
+		},
+		tables: make(map[string]map[string]string),
+	}, nil
 }
 
-func Init(ctx context.Context, r io.Reader, s InitOpts) io.Reader {
+func Init(r io.Reader, s InitOpts) (*PgSQL, error) {
 
-	return fsm.Init(
-		r,
+	uctx, err := userCtxInit(s)
+	if err != nil {
+		return nil, fmt.Errorf("pgsql anonymizer init: %w", err)
+	}
+
+	return &PgSQL{
+		uctx:         uctx,
+		sourceReader: r,
+	}, nil
+}
+
+func (p *PgSQL) Run(ctx context.Context, w io.Writer) error {
+
+	ar := fsm.Init(
+		p.sourceReader,
 		fsm.Description{
 			Ctx:       ctx,
-			UserCtx:   userCtxInit(s),
+			UserCtx:   p.uctx,
 			InitState: stateInit,
 			States: map[fsm.StateName]fsm.State{
 
@@ -234,12 +240,11 @@ func Init(ctx context.Context, r io.Reader, s InitOpts) io.Reader {
 			},
 		},
 	)
-}
 
-func columnType(key string) relfilter.ColumnType {
-	t, b := typeKeys[key]
-	if b == false {
-		return relfilter.ColumnTypeNone
+	_, err := io.Copy(w, ar)
+	if err != nil {
+		return fmt.Errorf("pgsql anonymizer run: %w", err)
 	}
-	return t
+
+	return nil
 }

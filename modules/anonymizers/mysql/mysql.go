@@ -2,8 +2,8 @@ package mysql_anonymize
 
 import (
 	"context"
+	"fmt"
 	"io"
-	"strings"
 
 	"github.com/nixys/nxs-data-anonymizer/misc"
 	"github.com/nixys/nxs-data-anonymizer/modules/filters/relfilter"
@@ -11,124 +11,158 @@ import (
 	fsm "github.com/nixys/nxs-go-fsm"
 )
 
-type InitSettings struct {
-	Security SecuritySettings
-	Rules    relfilter.Rules
+type MySQL struct {
+	uctx         *userCtx
+	sourceReader io.Reader
 }
 
-type SecuritySettings struct {
-	TablePolicy     misc.SecurityPolicyTablesType
-	TableExceptions map[string]any
+type InitOpts struct {
+	Security SecurityOpts
+	Rules    RulesOpts
+}
+
+type RulesOpts struct {
+	TableRules       map[string]map[string]relfilter.ColumnRuleOpts
+	DefaultRules     map[string]relfilter.ColumnRuleOpts
+	ExceptionColumns []string
+	TypeRuleCustom   []relfilter.TypeRuleOpts
+}
+
+type SecurityOpts struct {
+	TablesPolicy    misc.SecurityPolicyTablesType
+	ColumnsPolicy   misc.SecurityPolicyColumnsType
+	TableExceptions []string
 }
 
 type userCtx struct {
-	filter *relfilter.Filter
-	column userColumnCtx
-
-	security securityCtx
-}
-
-type userColumnCtx struct {
-	name       string
-	columnType relfilter.ColumnType
-	isSkip     bool
+	filter     *relfilter.Filter
+	columnName string
+	security   securityCtx
+	tables     map[string]map[string]columnType
 }
 
 type securityCtx struct {
 	tmpBuf []byte
 	isSkip bool
 
-	tablePolicy     misc.SecurityPolicyTablesType
+	tablesPolicy    misc.SecurityPolicyTablesType
 	tableExceptions map[string]any
 }
 
+type columnType string
+
 const (
-	columnTypeString relfilter.ColumnType = "string"
-	columnTypeNum    relfilter.ColumnType = "numeric"
-	columnTypeBinary relfilter.ColumnType = "binary"
+	columnTypeNone   columnType = "none"
+	columnTypeString columnType = "string"
+	columnTypeNum    columnType = "numeric"
+	columnTypeBinary columnType = "binary"
 )
 
-var typeKeys = map[string]relfilter.ColumnType{
+func (c columnType) String() string {
+	return string(c)
+}
 
-	// Special
-	"generated": relfilter.ColumnTypeNone,
+var typeKeys = map[string]columnType{
 
 	// Strings
-	"char":       columnTypeString,
-	"varchar":    columnTypeString,
-	"tinytext":   columnTypeString,
-	"text":       columnTypeString,
-	"mediumtext": columnTypeString,
-	"longtext":   columnTypeString,
-	"enum":       columnTypeString,
-	"set":        columnTypeString,
-	"date":       columnTypeString,
-	"datetime":   columnTypeString,
-	"timestamp":  columnTypeString,
-	"time":       columnTypeString,
-	"year":       columnTypeString,
-	"json":       columnTypeString,
+	"CHAR":       columnTypeString,
+	"VARCHAR":    columnTypeString,
+	"TINYTEXT":   columnTypeString,
+	"TEXT":       columnTypeString,
+	"MEDIUMTEXT": columnTypeString,
+	"LONGTEXT":   columnTypeString,
+	"ENUM":       columnTypeString,
+	"SET":        columnTypeString,
+	"DATE":       columnTypeString,
+	"DATETIME":   columnTypeString,
+	"TIMESTAMP":  columnTypeString,
+	"TIME":       columnTypeString,
+	"YEAR":       columnTypeString,
+	"JSON":       columnTypeString,
 
 	// Numeric
-	"bit":              columnTypeNum,
-	"bool":             columnTypeNum,
-	"boolean":          columnTypeNum,
-	"tinyint":          columnTypeNum,
-	"smallint":         columnTypeNum,
-	"mediumint":        columnTypeNum,
-	"int":              columnTypeNum,
-	"integer":          columnTypeNum,
-	"bigint":           columnTypeNum,
-	"float":            columnTypeNum,
-	"double":           columnTypeNum,
-	"double precision": columnTypeNum,
-	"decimal":          columnTypeNum,
-	"dec":              columnTypeNum,
+	"BIT":              columnTypeNum,
+	"BOOL":             columnTypeNum,
+	"BOOLEAN":          columnTypeNum,
+	"TINYINT":          columnTypeNum,
+	"SMALLINT":         columnTypeNum,
+	"MEDIUMINT":        columnTypeNum,
+	"INT":              columnTypeNum,
+	"INTEGER":          columnTypeNum,
+	"BIGINT":           columnTypeNum,
+	"FLOAT":            columnTypeNum,
+	"DOUBLE":           columnTypeNum,
+	"DOUBLE precision": columnTypeNum,
+	"DECIMAL":          columnTypeNum,
+	"DEC":              columnTypeNum,
 
 	// Binary
-	"binary":     columnTypeBinary,
-	"varbinary":  columnTypeBinary,
-	"tinyblob":   columnTypeBinary,
-	"blob":       columnTypeBinary,
-	"mediumblob": columnTypeBinary,
-	"longblob":   columnTypeBinary,
+	"BINARY":     columnTypeBinary,
+	"VARBINARY":  columnTypeBinary,
+	"TINYBLOB":   columnTypeBinary,
+	"BLOB":       columnTypeBinary,
+	"MEDIUMBLOB": columnTypeBinary,
+	"LONGBLOB":   columnTypeBinary,
 }
 
-var RandomizeTypesDefault = map[relfilter.ColumnType]relfilter.ColumnRule{
-	columnTypeBinary: {
-		Type:   misc.ValueTypeTemplate,
-		Value:  "cmFuZG9taXplZCBiaW5hcnkgZGF0YQo=",
-		Unique: false,
-	},
-	columnTypeNum: {
-		Type:   misc.ValueTypeTemplate,
-		Value:  "0",
-		Unique: false,
-	},
-	columnTypeString: {
-		Type:   misc.ValueTypeTemplate,
-		Value:  "randomized string data",
-		Unique: false,
-	},
-}
+func userCtxInit(s InitOpts) (*userCtx, error) {
 
-func userCtxInit(s InitSettings) *userCtx {
-	return &userCtx{
-		filter: relfilter.Init(s.Rules),
-		security: securityCtx{
-			tablePolicy:     s.Security.TablePolicy,
-			tableExceptions: s.Security.TableExceptions,
-		},
+	trc := []relfilter.TypeRuleOpts{}
+	trd := []relfilter.TypeRuleOpts{}
+	if s.Security.ColumnsPolicy == misc.SecurityPolicyColumnsRandomize {
+		trc = s.Rules.TypeRuleCustom
+		trd = typeRuleDefault
 	}
+
+	f, err := relfilter.Init(
+		relfilter.InitOpts{
+			TableRules:       s.Rules.TableRules,
+			DefaultRules:     s.Rules.DefaultRules,
+			ExceptionColumns: s.Rules.ExceptionColumns,
+			TypeRuleCustom:   trc,
+			TypeRuleDefault:  trd,
+		},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("user ctx init: %w", err)
+	}
+
+	return &userCtx{
+		filter: f,
+		security: securityCtx{
+			tablesPolicy: s.Security.TablesPolicy,
+			tableExceptions: func() map[string]any {
+				excs := make(map[string]any)
+				for _, e := range s.Security.TableExceptions {
+					excs[e] = nil
+				}
+				return excs
+			}(),
+		},
+		tables: make(map[string]map[string]columnType),
+	}, nil
 }
 
-func Init(ctx context.Context, r io.Reader, s InitSettings) io.Reader {
+func Init(r io.Reader, s InitOpts) (*MySQL, error) {
 
-	return fsm.Init(
-		r,
+	uctx, err := userCtxInit(s)
+	if err != nil {
+		return nil, fmt.Errorf("mysql anonymizer init: %w", err)
+	}
+
+	return &MySQL{
+		uctx:         uctx,
+		sourceReader: r,
+	}, nil
+}
+
+func (m *MySQL) Run(ctx context.Context, w io.Writer) error {
+
+	ar := fsm.Init(
+		m.sourceReader,
 		fsm.Description{
 			Ctx:       ctx,
-			UserCtx:   userCtxInit(s),
+			UserCtx:   m.uctx,
 			InitState: stateCreateSearch,
 			States: map[fsm.StateName]fsm.State{
 
@@ -302,34 +336,8 @@ func Init(ctx context.Context, r io.Reader, s InitSettings) io.Reader {
 					},
 				},
 				stateFieldsDescriptionNameTail: {
-					NextStates: func() []fsm.NextState {
-
-						var nss []fsm.NextState
-
-						for t := range typeKeys {
-							for i := 0; i < 2; i++ {
-
-								s := t
-								if i == 1 {
-									s = strings.ToUpper(t)
-								}
-
-								nss = append(nss, fsm.NextState{
-									Name: stateFieldsDescriptionNameTail,
-									Switch: fsm.Switch{
-										Trigger: []byte(s),
-										Delimiters: fsm.Delimiters{
-											L: []byte{' '},
-											R: []byte{' ', '(', ',', '\n'},
-										},
-									},
-									DataHandler: dhCreateTableColumnTypeAdd,
-								})
-							}
-						}
-
-						// Additional states
-						nss = append(nss, fsm.NextState{
+					NextStates: []fsm.NextState{
+						{
 							Name: stateFieldsDescriptionBlock,
 							Switch: fsm.Switch{
 								Trigger: []byte(","),
@@ -338,8 +346,8 @@ func Init(ctx context.Context, r io.Reader, s InitSettings) io.Reader {
 								},
 							},
 							DataHandler: dhCreateTableColumnAdd,
-						})
-						nss = append(nss, fsm.NextState{
+						},
+						{
 							Name: statefFieldsDescriptionBlockEnd,
 							Switch: fsm.Switch{
 								Trigger: []byte(")"),
@@ -348,10 +356,8 @@ func Init(ctx context.Context, r io.Reader, s InitSettings) io.Reader {
 								},
 							},
 							DataHandler: dhCreateTableColumnAdd,
-						})
-
-						return nss
-					}(),
+						},
+					},
 				},
 				statefFieldsDescriptionBlockEnd: {
 					NextStates: []fsm.NextState{
@@ -518,4 +524,11 @@ func Init(ctx context.Context, r io.Reader, s InitSettings) io.Reader {
 			},
 		},
 	)
+
+	_, err := io.Copy(w, ar)
+	if err != nil {
+		return fmt.Errorf("mysql anonymizer run: %w", err)
+	}
+
+	return nil
 }

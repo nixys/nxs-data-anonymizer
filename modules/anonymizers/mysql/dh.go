@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/nixys/nxs-data-anonymizer/misc"
-	"github.com/nixys/nxs-data-anonymizer/modules/filters/relfilter"
 )
 
 func dhSecurityInsertInto(usrCtx any, deferred, token []byte) ([]byte, error) {
@@ -50,28 +49,7 @@ func dhCreateTableName(usrCtx any, deferred, token []byte) ([]byte, error) {
 func dhCreateTableFieldName(usrCtx any, deferred, token []byte) ([]byte, error) {
 
 	uctx := usrCtx.(*userCtx)
-	uctx.column.name = string(deferred)
-
-	return append(deferred, token...), nil
-}
-
-func dhCreateTableColumnTypeAdd(usrCtx any, deferred, token []byte) ([]byte, error) {
-
-	uctx := usrCtx.(*userCtx)
-
-	for k, v := range typeKeys {
-		if k == "generated" {
-			if k == string(token) || strings.ToUpper(k) == string(token) {
-				uctx.column.isSkip = true
-				break
-			}
-		} else {
-			if k == string(token) || strings.ToUpper(k) == string(token) {
-				uctx.column.columnType = v
-				break
-			}
-		}
-	}
+	uctx.columnName = string(deferred)
 
 	return append(deferred, token...), nil
 }
@@ -80,11 +58,35 @@ func dhCreateTableColumnAdd(usrCtx any, deferred, token []byte) ([]byte, error) 
 
 	uctx := usrCtx.(*userCtx)
 
-	if uctx.column.isSkip == false {
-		uctx.filter.ColumnAdd(uctx.column.name, uctx.column.columnType)
+	traw := strings.TrimSpace(string(deferred))
+	trawUpper := strings.ToUpper(traw)
+
+	if strings.Contains(trawUpper, " GENERATED ") == false {
+
+		i := strings.IndexAny(strings.TrimSpace(trawUpper), " (,")
+		if i != -1 {
+
+			ct := columnTypeNone
+			for k, v := range typeKeys {
+				if trawUpper[0:i] == k {
+					ct = v
+				}
+			}
+
+			t, b := uctx.tables[uctx.filter.TableNameGet()]
+			if b {
+				t[uctx.columnName] = ct
+			} else {
+				t = make(map[string]columnType)
+				t[uctx.columnName] = ct
+			}
+			uctx.tables[uctx.filter.TableNameGet()] = t
+
+			uctx.filter.ColumnAdd(uctx.columnName, traw)
+		}
 	}
 
-	uctx.column = userColumnCtx{}
+	uctx.columnName = ""
 
 	return append(deferred, token...), nil
 }
@@ -167,7 +169,7 @@ func dhCreateTableValuesEnd(usrCtx any, deferred, token []byte) ([]byte, error) 
 		return []byte{}, err
 	}
 
-	return rowDataGen(uctx.filter), nil
+	return rowDataGen(uctx), nil
 }
 
 func dhCreateTableValuesStringEnd(usrCtx any, deferred, token []byte) ([]byte, error) {
@@ -183,14 +185,14 @@ func dhCreateTableValuesStringEnd(usrCtx any, deferred, token []byte) ([]byte, e
 		return []byte{}, err
 	}
 
-	return rowDataGen(uctx.filter), nil
+	return rowDataGen(uctx), nil
 }
 
-func rowDataGen(filter *relfilter.Filter) []byte {
+func rowDataGen(uctx *userCtx) []byte {
 
 	var out string
 
-	row := filter.ValuePop()
+	row := uctx.filter.ValuePop()
 
 	for i, v := range row.Values {
 
@@ -201,7 +203,7 @@ func rowDataGen(filter *relfilter.Filter) []byte {
 		if v.V == nil {
 			out += "NULL"
 		} else {
-			switch filter.ColumnTypeGet(i) {
+			switch uctx.tables[uctx.filter.TableNameGet()][uctx.filter.ColumnGetName(i)] {
 			case columnTypeString:
 				out += fmt.Sprintf("'%s'", v.V)
 			case columnTypeBinary:
@@ -221,7 +223,7 @@ func rowDataGen(filter *relfilter.Filter) []byte {
 func securityPolicyCheck(uctx *userCtx, tname string) bool {
 
 	// Continue if security policy is `skip`
-	if uctx.security.tablePolicy != misc.SecurityPolicyTablesSkip {
+	if uctx.security.tablesPolicy != misc.SecurityPolicyTablesSkip {
 		return true
 	}
 

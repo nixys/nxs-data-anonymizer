@@ -4,22 +4,26 @@ import (
 	"bytes"
 	"fmt"
 	"os/exec"
+	"regexp"
 
 	"github.com/nixys/nxs-data-anonymizer/misc"
 )
 
-type Rules struct {
-	Tables           map[string]TableRules
-	ExceptionColumns map[string]any
-	Defaults         TableRules
-	RandomizeTypes   map[ColumnType]ColumnRule
+type InitOpts struct {
+	TableRules       map[string]map[string]ColumnRuleOpts
+	DefaultRules     map[string]ColumnRuleOpts
+	ExceptionColumns []string
+
+	TypeRuleCustom  []TypeRuleOpts
+	TypeRuleDefault []TypeRuleOpts
 }
 
-type TableRules struct {
-	Columns map[string]ColumnRule
+type TypeRuleOpts struct {
+	Selector string
+	Rule     ColumnRuleOpts
 }
 
-type ColumnRule struct {
+type ColumnRuleOpts struct {
 	Type   misc.ValueType
 	Value  string
 	Unique bool
@@ -28,7 +32,7 @@ type ColumnRule struct {
 type Filter struct {
 
 	// Rules for filter a table values
-	rules Rules
+	rules rules
 
 	// Temp table data for filtering
 	tableData tableData
@@ -36,6 +40,20 @@ type Filter struct {
 
 type Row struct {
 	Values []rowValue
+}
+
+type rules struct {
+	tableRules       map[string]map[string]ColumnRuleOpts
+	defaultRules     map[string]ColumnRuleOpts
+	exceptionColumns map[string]any
+
+	typeRuleCustom  []typeRule
+	typeRuleDefault []typeRule
+}
+
+type typeRule struct {
+	Rgx  *regexp.Regexp
+	Rule ColumnRuleOpts
 }
 
 type tableData struct {
@@ -57,16 +75,66 @@ const (
 	envVarCurColumn    = "ENVVARCURCOLUMN"
 )
 
-type rule struct {
+type applyRule struct {
 	c  *column
 	i  int
-	cr ColumnRule
+	cr ColumnRuleOpts
 }
 
-func Init(rules Rules) *Filter {
-	return &Filter{
-		rules: rules,
+func Init(opts InitOpts) (*Filter, error) {
+
+	trc := []typeRule{}
+	trd := []typeRule{}
+
+	// Make custom type rules
+	for _, r := range opts.TypeRuleCustom {
+
+		re, err := regexp.Compile(r.Selector)
+		if err != nil {
+			return nil, fmt.Errorf("filter init: %w", err)
+		}
+
+		trc = append(
+			trc,
+			typeRule{
+				Rgx:  re,
+				Rule: r.Rule,
+			},
+		)
 	}
+
+	// Make default type rules
+	for _, r := range opts.TypeRuleDefault {
+
+		re, err := regexp.Compile(r.Selector)
+		if err != nil {
+			return nil, fmt.Errorf("filter init: %w", err)
+		}
+
+		trd = append(
+			trd,
+			typeRule{
+				Rgx:  re,
+				Rule: r.Rule,
+			},
+		)
+	}
+
+	// Make exceptions
+	excpts := make(map[string]any)
+	for _, e := range opts.ExceptionColumns {
+		excpts[e] = nil
+	}
+
+	return &Filter{
+		rules: rules{
+			tableRules:       opts.TableRules,
+			defaultRules:     opts.DefaultRules,
+			exceptionColumns: excpts,
+			typeRuleCustom:   trc,
+			typeRuleDefault:  trd,
+		},
+	}, nil
 }
 
 // TableCreate creates new data set for table `name`
@@ -84,20 +152,20 @@ func (filter *Filter) TableNameGet() string {
 }
 
 // TableRulesLookup looks up filters for specified table name
-func (filter *Filter) TableRulesLookup(name string) *TableRules {
-	if t, b := filter.rules.Tables[name]; b {
-		return &t
+func (filter *Filter) TableRulesLookup(name string) map[string]ColumnRuleOpts {
+	if t, b := filter.rules.tableRules[name]; b {
+		return t
 	}
 	return nil
 }
 
 // ColumnAdd adds new column into current data set
-func (filter *Filter) ColumnAdd(name string, t ColumnType) {
-	filter.tableData.columns.add(name, t)
+func (filter *Filter) ColumnAdd(name string, rt string) {
+	filter.tableData.columns.add(name, rt)
 }
 
-func (filter *Filter) ColumnTypeGet(index int) ColumnType {
-	return filter.tableData.columns.typeGetByIndex(index)
+func (filter *Filter) ColumnGetName(index int) string {
+	return filter.tableData.columns.getNameByIndex(index)
 }
 
 func (filter *Filter) ValueAdd(b []byte) {
@@ -124,7 +192,7 @@ func (filter *Filter) ValuePop() Row {
 
 func (filter *Filter) Apply() error {
 
-	var rls []rule
+	var rls []applyRule
 
 	tname := filter.tableData.name
 
@@ -136,11 +204,11 @@ func (filter *Filter) Apply() error {
 
 		// Check direct rules for column
 		if tr != nil {
-			if cr, e := tr.Columns[c.n]; e == true {
+			if cr, e := tr[c.n]; e == true {
 
 				rls = append(
 					rls,
-					rule{
+					applyRule{
 						c:  c,
 						i:  i,
 						cr: cr,
@@ -151,10 +219,10 @@ func (filter *Filter) Apply() error {
 		}
 
 		// Check default rules for column
-		if cr, e := filter.rules.Defaults.Columns[c.n]; e == true {
+		if cr, e := filter.rules.defaultRules[c.n]; e == true {
 			rls = append(
 				rls,
-				rule{
+				applyRule{
 					c:  c,
 					i:  i,
 					cr: cr,
@@ -163,21 +231,49 @@ func (filter *Filter) Apply() error {
 			continue
 		}
 
-		// Check randomize rules for column
-		if cr, b := filter.rules.RandomizeTypes[c.t]; b {
+		// Check column is excepted
+		if _, b := filter.rules.exceptionColumns[c.n]; b {
+			continue
+		}
 
-			// Check that column excepted
-			if _, b := filter.rules.ExceptionColumns[c.n]; !b {
-				rls = append(
-					rls,
-					rule{
-						c:  c,
-						i:  i,
-						cr: cr,
-					},
-				)
-				continue
+		// Check custom type rule for column
+		if b := func() bool {
+			for _, r := range filter.rules.typeRuleCustom {
+				if r.Rgx.Match([]byte(c.rawType)) {
+					rls = append(
+						rls,
+						applyRule{
+							c:  c,
+							i:  i,
+							cr: r.Rule,
+						},
+					)
+					return true
+				}
 			}
+			return false
+		}(); b {
+			continue
+		}
+
+		// Check default type rule for column
+		if b := func() bool {
+			for _, r := range filter.rules.typeRuleDefault {
+				if r.Rgx.Match([]byte(c.rawType)) {
+					rls = append(
+						rls,
+						applyRule{
+							c:  c,
+							i:  i,
+							cr: r.Rule,
+						},
+					)
+					return true
+				}
+			}
+			return false
+		}(); b {
+			continue
 		}
 
 		// Other rules if required
@@ -191,7 +287,7 @@ func (filter *Filter) Apply() error {
 	return nil
 }
 
-func (filter *Filter) applyRules(tname string, rls []rule) error {
+func (filter *Filter) applyRules(tname string, rls []applyRule) error {
 
 	// If no columns has rules
 	if len(rls) == 0 {
@@ -240,7 +336,7 @@ func (filter *Filter) applyRules(tname string, rls []rule) error {
 	return nil
 }
 
-func (filter *Filter) applyFilter(cn string, cr ColumnRule, td misc.TemplateData, tde []string) ([]byte, error) {
+func (filter *Filter) applyFilter(cn string, cr ColumnRuleOpts, td misc.TemplateData, tde []string) ([]byte, error) {
 
 	for i := 0; i < uniqueAttempts; i++ {
 
