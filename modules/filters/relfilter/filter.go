@@ -79,7 +79,7 @@ type rowValue struct {
 const uniqueAttempts = 5
 
 const (
-	envVarPrefix       = "ENVVAR_"
+	envVarGlobalPrefix = "ENVVARGLOBAL_"
 	envVarTable        = "ENVVARTABLE"
 	envVarColumnPrefix = "ENVVARCOLUMN_"
 	envVarCurColumn    = "ENVVARCURCOLUMN"
@@ -328,7 +328,7 @@ func (filter *Filter) applyRules(tname string, rls []applyRule) error {
 	for n, v := range filter.rules.variables {
 		tdenv = append(
 			tdenv,
-			fmt.Sprintf("%s%s=%s", envVarPrefix, n, v),
+			fmt.Sprintf("%s%s=%s", envVarGlobalPrefix, n, v),
 		)
 	}
 
