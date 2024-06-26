@@ -243,7 +243,8 @@ Default configuration file path: `/nxs-data-anonymizer.conf`. The file is repres
 | `logfile`      | String | No       | `stderr`      | Log file path. You may also use `stdout` and `stderr` |
 | `loglevel`     | String | No       | `info`        | Log level. Available values: `debug`, `warn`, `error` and `info` |
 | `progress`     | [Progress](#progress-settings) | No | - | Anonymization progress logging |
-| `filters`          | Map of [Filters](#filters-settings) | No      | -             | Filters set for specified tables (key as a table name). Note: for PgSQL you also need to specify a scheme (e.g. `public.tablename`) |
+| `variables`     | Map of [Variables](#variables-settings) (key: variable name) | No | - | Global variables to be used in a filters. Variables are set at the init of application and remain unchanged during the runtime  |
+| `filters`          | Map of [Filters](#filters-settings) (key: table name) | No      | -             | Filters set for specified tables (key as a table name). Note: for PgSQL you also need to specify a scheme (e.g. `public.tablename`) |
 | `security`     | [Security](#security-settings) | No       | -      | Security enforcement for anonymizer |
 
 
@@ -254,13 +255,20 @@ Default configuration file path: `/nxs-data-anonymizer.conf`. The file is repres
 | `rhythm`      | String | No       | `0s`    | Frequency write into the log a read bytes count. Progress will be written to the log only when this option is specified and has none-zero value. You may use a human-readable values (e.g. `30s`, `5m`, etc) |
 | `humanize`      | Bool | No       | `false`    | Set this option to `true` if you need to write into the log a read bytes count in a human-readable format. On `false` raw bytes count will be written to the log |
 
+##### Variables settings
+
+| Option        | Type   | Required | Default value | Description                                                      |
+|---            | :---:  | :---:    | :---:         |---                                                               |
+| `type`        | String | No       | `template`    | Type of field `value`: `template` and `command` are available  |
+| `value`       | String | Yes      | -             | The value to be used as global variable value within the filters. In accordance with the `type` this value may be either `Go template` or `command`. See below for details|
+
 ##### Filters settings
 
 Filters description for specified table.
 
 | Option         | Type   | Required | Default value | Description                                                      |
 |---             | :---:  | :---:    | :---:         |---                                                               |
-| `columns`      | Map of [Columns](#columns-settings) | No       | -      | Filter rules for specified columns of table (key as a column name) |
+| `columns`      | Map of [Columns](#columns-settings) (key: column name) | No       | -      | Filter rules for specified columns of table (key as a column name) |
 
 ###### Columns settings
 
@@ -272,11 +280,15 @@ Filters description for specified table.
 
 **Go template**
 
-To anonymize a database fields you may use a Go template with the [Sprig template library's](https://masterminds.github.io/sprig/) functions. You may also use values of other columns in the rules for same row (with values before substitutions).
+To anonymize a database fields you may use a Go template with the [Sprig template library's](https://masterminds.github.io/sprig/) functions. 
 
 Additional filter functions:
 - `null`: set a field value to `NULL`
 - `isNull`: compare a field value with `NULL`
+
+You may also use the following data in a templates:
+- Values of other columns in the rules for same row (with values before substitutions). Statement: `{{ .Values.COLUMN_NAME }}` (e.g.: `{{ .Values.username }}`)
+- Global variables. Statement: `{{ .Variables.VARIABLE_NAME }}` (e.g.: `{{ .Variables.password }}`)  
 
 **Command**
 
@@ -286,6 +298,7 @@ To anonymize a database fields you may use a commands (scripts or binaries) with
 - Environment variables with the row data are available within the command:
   - `ENVVARTABLE`: contains a name of the filtered table
   - `ENVVARCURCOLUMN`: contains the current column name 
+  - `ENVVARGLOBAL_{VARIABLE_NAME}`: contains value for specified global variable
   - `ENVVARCOLUMN_{COLUMN_NAME}`: contains values (before substitutions) for all columns for the current row
 
 ##### Security settings
@@ -400,6 +413,13 @@ You need to get a dump with fake values:
 In accordance with these conditions, the nxs-data-anonymizer config may look like this:
 
 ```yaml
+variables:
+  adminPassword:
+    type: template
+    value: "preset_admin_password"
+  adminAPIKey:
+    value: "preset_admin_api_key"
+
 filters:
   public.users:
     columns:
@@ -410,7 +430,7 @@ filters:
         value: /path/to/script.sh
         unique: true
       api_key:
-        value: "{{ if eq .Values.username \"admin\" }}preset_admin_api_key{{ else }}{{- randAlphaNum 50 | nospace | lower -}}{{ end }}"
+        value: "{{ if eq .Values.username \"admin\" }}{{ .Variables.adminAPIKey }}{{ else }}{{- randAlphaNum 50 | nospace | lower -}}{{ end }}"
         unique: true
 ```
 
@@ -422,7 +442,7 @@ The `/path/to/script.sh` script content is following:
 # Print preset password if current user is admin
 if [ "$ENVVARCOLUMN_username" == "admin" ];
 then
-    echo -n "preset_admin_password"
+    echo -n "$ENVVARGLOBAL_adminPassword"
     exit 0
 fi
 
