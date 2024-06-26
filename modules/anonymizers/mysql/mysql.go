@@ -17,8 +17,9 @@ type MySQL struct {
 }
 
 type InitOpts struct {
-	Security SecurityOpts
-	Rules    RulesOpts
+	Variables map[string]relfilter.VariableRuleOpts
+	Security  SecurityOpts
+	Rules     RulesOpts
 }
 
 type RulesOpts struct {
@@ -116,6 +117,7 @@ func userCtxInit(s InitOpts) (*userCtx, error) {
 
 	f, err := relfilter.Init(
 		relfilter.InitOpts{
+			Variables:        s.Variables,
 			TableRules:       s.Rules.TableRules,
 			DefaultRules:     s.Rules.DefaultRules,
 			ExceptionColumns: s.Rules.ExceptionColumns,

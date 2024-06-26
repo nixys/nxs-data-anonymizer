@@ -10,6 +10,8 @@ import (
 )
 
 type InitOpts struct {
+	Variables map[string]VariableRuleOpts
+
 	TableRules       map[string]map[string]ColumnRuleOpts
 	DefaultRules     map[string]ColumnRuleOpts
 	ExceptionColumns []string
@@ -29,6 +31,11 @@ type ColumnRuleOpts struct {
 	Unique bool
 }
 
+type VariableRuleOpts struct {
+	Type  misc.ValueType
+	Value string
+}
+
 type Filter struct {
 
 	// Rules for filter a table values
@@ -43,6 +50,8 @@ type Row struct {
 }
 
 type rules struct {
+	variables map[string]string
+
 	tableRules       map[string]map[string]ColumnRuleOpts
 	defaultRules     map[string]ColumnRuleOpts
 	exceptionColumns map[string]any
@@ -70,6 +79,7 @@ type rowValue struct {
 const uniqueAttempts = 5
 
 const (
+	envVarPrefix       = "ENVVAR_"
 	envVarTable        = "ENVVARTABLE"
 	envVarColumnPrefix = "ENVVARCOLUMN_"
 	envVarCurColumn    = "ENVVARCURCOLUMN"
@@ -126,8 +136,18 @@ func Init(opts InitOpts) (*Filter, error) {
 		excpts[e] = nil
 	}
 
+	vars := make(map[string]string)
+	for n, f := range opts.Variables {
+		v, err := makeVariable(f)
+		if err != nil {
+			return nil, fmt.Errorf("filter init: %w", err)
+		}
+		vars[n] = v
+	}
+
 	return &Filter{
 		rules: rules{
+			variables:        vars,
 			tableRules:       opts.TableRules,
 			defaultRules:     opts.DefaultRules,
 			exceptionColumns: excpts,
@@ -298,10 +318,18 @@ func (filter *Filter) applyRules(tname string, rls []applyRule) error {
 	td := misc.TemplateData{
 		TableName: tname,
 		Values:    make(map[string][]byte),
+		Variables: filter.rules.variables,
 	}
 
 	tdenv := []string{
 		fmt.Sprintf("%s=%s", envVarTable, tname),
+	}
+
+	for n, v := range filter.rules.variables {
+		tdenv = append(
+			tdenv,
+			fmt.Sprintf("%s%s=%s", envVarPrefix, n, v),
+		)
 	}
 
 	for i, c := range filter.tableData.columns.cc {
@@ -324,7 +352,7 @@ func (filter *Filter) applyRules(tname string, rls []applyRule) error {
 			fmt.Sprintf("%s=%s", envVarCurColumn, r.c.n),
 		)
 
-		v, err := filter.applyFilter(r.c.n, r.cr, td, tde)
+		v, err := filter.applyColumnFilter(r.c.n, r.cr, td, tde)
 		if err != nil {
 			return fmt.Errorf("rules: %w", err)
 		}
@@ -336,7 +364,7 @@ func (filter *Filter) applyRules(tname string, rls []applyRule) error {
 	return nil
 }
 
-func (filter *Filter) applyFilter(cn string, cr ColumnRuleOpts, td misc.TemplateData, tde []string) ([]byte, error) {
+func (filter *Filter) applyColumnFilter(cn string, cr ColumnRuleOpts, td misc.TemplateData, tde []string) ([]byte, error) {
 
 	for i := 0; i < uniqueAttempts; i++ {
 
@@ -349,7 +377,7 @@ func (filter *Filter) applyFilter(cn string, cr ColumnRuleOpts, td misc.Template
 		case misc.ValueTypeTemplate:
 			v, err = misc.TemplateExec(
 				cr.Value,
-				td,
+				&td,
 			)
 			if err != nil {
 				return []byte{}, fmt.Errorf("filter: value compile template: %w", err)
@@ -421,4 +449,48 @@ func bcopy(b []byte) []byte {
 	copy(d, b)
 
 	return d
+}
+
+func makeVariable(cr VariableRuleOpts) (string, error) {
+
+	var (
+		v   []byte
+		err error
+	)
+
+	switch cr.Type {
+	case misc.ValueTypeTemplate:
+		v, err = misc.TemplateExec(
+			cr.Value,
+			nil,
+		)
+		if err != nil {
+			return "", fmt.Errorf("variable: value compile template: %w", err)
+		}
+	case misc.ValueTypeCommand:
+
+		var stderr, stdout bytes.Buffer
+
+		cmd := exec.Command(cr.Value)
+
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
+
+		if err := cmd.Run(); err != nil {
+
+			e, b := err.(*exec.ExitError)
+			if b == false {
+				return "", fmt.Errorf("variable: value exec command: %w", err)
+			}
+
+			return "", fmt.Errorf("variable: value exec command: bad exit code %d: %s", e.ExitCode(), stderr.String())
+		}
+
+		v = stdout.Bytes()
+
+	default:
+		return "", fmt.Errorf("variable: value compile: unknown type")
+	}
+
+	return string(bytes.ReplaceAll(v, []byte("\n"), []byte("\\n"))), nil
 }
