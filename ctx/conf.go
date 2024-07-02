@@ -11,9 +11,10 @@ type confOpts struct {
 	LogFile  string `conf:"logfile" conf_extraopts:"default=stderr"`
 	LogLevel string `conf:"loglevel" conf_extraopts:"default=info"`
 
-	Progress progressConf          `conf:"progress"`
-	Filters  map[string]filterConf `conf:"filters"`
-	Security securityConf          `conf:"security"`
+	Progress  progressConf                  `conf:"progress"`
+	Filters   map[string]filterConf         `conf:"filters"`
+	Security  securityConf                  `conf:"security"`
+	Variables map[string]variableFilterConf `conf:"variables"`
 
 	MySQL *mysqlConf `conf:"mysql"`
 }
@@ -31,6 +32,11 @@ type columnFilterConf struct {
 	Type   string `conf:"type" conf_extraopts:"default=template"`
 	Value  string `conf:"value" conf_extraopts:"required"`
 	Unique bool   `conf:"unique"`
+}
+
+type variableFilterConf struct {
+	Type  string `conf:"type" conf_extraopts:"default=template"`
+	Value string `conf:"value" conf_extraopts:"required"`
 }
 
 type securityConf struct {
@@ -83,8 +89,14 @@ func confRead(confPath string) (confOpts, error) {
 	for _, f := range c.Filters {
 		for _, cf := range f.Columns {
 			if misc.ValueTypeFromString(cf.Type) == misc.ValueTypeUnknown {
-				return c, fmt.Errorf("conf read: unknown filter type")
+				return c, fmt.Errorf("conf read: unknown column filter type")
 			}
+		}
+	}
+
+	for _, f := range c.Variables {
+		if misc.ValueTypeFromString(f.Type) == misc.ValueTypeUnknown {
+			return c, fmt.Errorf("conf read: unknown variable filter type")
 		}
 	}
 

@@ -139,6 +139,17 @@ func AppCtxInit() (any, error) {
 
 	c.PR = progressreader.Init(ir)
 
+	vr := func() map[string]relfilter.VariableRuleOpts {
+		rules := make(map[string]relfilter.VariableRuleOpts)
+		for n, f := range conf.Variables {
+			rules[n] = relfilter.VariableRuleOpts{
+				Type:  misc.ValueType(f.Type),
+				Value: f.Value,
+			}
+		}
+		return rules
+	}()
+
 	tr := func() map[string]map[string]relfilter.ColumnRuleOpts {
 		tables := make(map[string]map[string]relfilter.ColumnRuleOpts)
 		for t, cs := range conf.Filters {
@@ -190,6 +201,7 @@ func AppCtxInit() (any, error) {
 		c.Anonymizer, err = mysql_anonymize.Init(
 			c.PR,
 			mysql_anonymize.InitOpts{
+				Variables: vr,
 				Security: mysql_anonymize.SecurityOpts{
 					TablesPolicy:    misc.SecurityPolicyTablesType(conf.Security.Policy.Tables),
 					ColumnsPolicy:   misc.SecurityPolicyColumnsTypeFromString(conf.Security.Policy.Columns),
@@ -213,6 +225,7 @@ func AppCtxInit() (any, error) {
 		c.Anonymizer, err = pgsql_anonymize.Init(
 			c.PR,
 			pgsql_anonymize.InitOpts{
+				Variables: vr,
 				Security: pgsql_anonymize.SecurityOpts{
 					TablesPolicy:    misc.SecurityPolicyTablesType(conf.Security.Policy.Tables),
 					ColumnsPolicy:   misc.SecurityPolicyColumnsTypeFromString(conf.Security.Policy.Columns),
