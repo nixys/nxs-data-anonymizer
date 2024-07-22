@@ -12,6 +12,8 @@ import (
 type InitOpts struct {
 	Variables map[string]VariableRuleOpts
 
+	Link []LinkOpts
+
 	TableRules       map[string]map[string]ColumnRuleOpts
 	DefaultRules     map[string]ColumnRuleOpts
 	ExceptionColumns []string
@@ -36,6 +38,11 @@ type VariableRuleOpts struct {
 	Value string
 }
 
+type LinkOpts struct {
+	Rule ColumnRuleOpts
+	With map[string][]string
+}
+
 type Filter struct {
 
 	// Rules for filter a table values
@@ -58,6 +65,8 @@ type rules struct {
 
 	typeRuleCustom  []typeRule
 	typeRuleDefault []typeRule
+
+	link []linkValues
 }
 
 type typeRule struct {
@@ -76,6 +85,26 @@ type rowValue struct {
 	V []byte
 }
 
+type linkValues struct {
+
+	// Linked tables and columns
+	t map[string]map[string]any
+
+	// Map old:new values
+	v map[string][]byte
+
+	// Unique map
+	u map[string]any
+
+	// Rule
+	r ColumnRuleOpts
+}
+
+type execFilterOpts struct {
+	t misc.ValueType
+	v string
+}
+
 const uniqueAttempts = 5
 
 const (
@@ -89,6 +118,8 @@ type applyRule struct {
 	c  *column
 	i  int
 	cr ColumnRuleOpts
+	v  map[string][]byte
+	u  map[string]any
 }
 
 func Init(opts InitOpts) (*Filter, error) {
@@ -138,16 +169,51 @@ func Init(opts InitOpts) (*Filter, error) {
 
 	vars := make(map[string]string)
 	for n, f := range opts.Variables {
-		v, err := makeVariable(f)
+		v, err := execFilter(
+			execFilterOpts{
+				t: f.Type,
+				v: f.Value,
+			},
+			nil,
+			nil,
+		)
 		if err != nil {
 			return nil, fmt.Errorf("filter init: %w", err)
 		}
-		vars[n] = v
+		vars[n] = string(v)
+	}
+
+	lvs := []linkValues{}
+	// Make links
+	for _, l := range opts.Link {
+
+		lv := linkValues{
+			t: make(map[string]map[string]any),
+			v: make(map[string][]byte),
+			u: func() map[string]any {
+				if l.Rule.Unique {
+					return make(map[string]any)
+				}
+				return nil
+			}(),
+			r: l.Rule,
+		}
+
+		for t, cs := range l.With {
+			m := make(map[string]any)
+			for _, c := range cs {
+				m[c] = nil
+			}
+			lv.t[t] = m
+		}
+
+		lvs = append(lvs, lv)
 	}
 
 	return &Filter{
 		rules: rules{
 			variables:        vars,
+			link:             lvs,
 			tableRules:       opts.TableRules,
 			defaultRules:     opts.DefaultRules,
 			exceptionColumns: excpts,
@@ -221,6 +287,30 @@ func (filter *Filter) Apply() error {
 
 	// Create rules for every column within current table
 	for i, c := range filter.tableData.columns.cc {
+
+		// Check linked column
+		t := false
+		for _, l := range filter.rules.link {
+			if e, b := l.t[tname]; b == true {
+				if _, u := e[c.n]; u == true {
+					rls = append(
+						rls,
+						applyRule{
+							c:  c,
+							i:  i,
+							cr: l.r,
+							v:  l.v,
+							u:  l.u,
+						},
+					)
+					t = true
+					break
+				}
+			}
+		}
+		if t {
+			continue
+		}
 
 		// Check direct rules for column
 		if tr != nil {
@@ -314,29 +404,20 @@ func (filter *Filter) applyRules(tname string, rls []applyRule) error {
 		return nil
 	}
 
-	// Fill table data and table envs
-	td := misc.TemplateData{
-		TableName: tname,
-		Values:    make(map[string][]byte),
-		Variables: filter.rules.variables,
-	}
-
-	tdenv := []string{
-		fmt.Sprintf("%s=%s", envVarTable, tname),
-	}
-
+	valEnvGlob := []string{}
 	for n, v := range filter.rules.variables {
-		tdenv = append(
-			tdenv,
+		valEnvGlob = append(
+			valEnvGlob,
 			fmt.Sprintf("%s%s=%s", envVarGlobalPrefix, n, v),
 		)
 	}
 
+	valOld := make(map[string]string)
+	valEnvOld := []string{}
 	for i, c := range filter.tableData.columns.cc {
-		td.Values[c.n] = filter.tableData.values[i].V
-
-		tdenv = append(
-			tdenv,
+		valOld[c.n] = string(filter.tableData.values[i].V)
+		valEnvOld = append(
+			valEnvOld,
 			fmt.Sprintf("%s%s=%s", envVarColumnPrefix, c.n, string(filter.tableData.values[i].V)),
 		)
 	}
@@ -344,17 +425,62 @@ func (filter *Filter) applyRules(tname string, rls []applyRule) error {
 	// Apply rule for each specified column
 	for _, r := range rls {
 
-		var tde []string
-
-		// Create tmp env variables with current column name
-		tde = append(
-			tdenv,
-			fmt.Sprintf("%s=%s", envVarCurColumn, r.c.n),
+		var (
+			v   []byte
+			err error
 		)
 
-		v, err := filter.applyColumnFilter(r.c.n, r.cr, td, tde)
-		if err != nil {
-			return fmt.Errorf("rules: %w", err)
+		if r.v != nil {
+
+			// For linked columns
+
+			type tplData struct {
+				Variables map[string]string
+			}
+
+			td := tplData{
+				Variables: filter.rules.variables,
+			}
+
+			if e, b := r.v[string(valOld[r.c.n])]; b {
+				v = e
+			} else {
+				v, err = filter.applyLinkFilter(r.c.n, r.cr, r.u, td, valEnvGlob)
+				if err != nil {
+					return fmt.Errorf("rules: %w", err)
+				}
+				r.v[string(valOld[r.c.n])] = v
+			}
+		} else {
+
+			type tplData struct {
+				TableName string
+				Values    map[string]string
+				Variables map[string]string
+			}
+
+			td := tplData{
+				TableName: tname,
+				Values:    valOld,
+				Variables: filter.rules.variables,
+			}
+
+			tdenv := []string{
+				fmt.Sprintf("%s=%s", envVarTable, tname),
+			}
+
+			// Create tmp env variables with current column name
+			tde := append(
+				tdenv,
+				fmt.Sprintf("%s=%s", envVarCurColumn, r.c.n),
+			)
+
+			tdenv = append(tdenv, valEnvGlob...)
+
+			v, err = filter.applyColumnFilter(r.c.n, r.cr, td, tde)
+			if err != nil {
+				return fmt.Errorf("rules: %w", err)
+			}
 		}
 
 		// Set specified value in accordance with filter
@@ -364,52 +490,20 @@ func (filter *Filter) applyRules(tname string, rls []applyRule) error {
 	return nil
 }
 
-func (filter *Filter) applyColumnFilter(cn string, cr ColumnRuleOpts, td misc.TemplateData, tde []string) ([]byte, error) {
+func (filter *Filter) applyColumnFilter(cn string, cr ColumnRuleOpts, td any, tde []string) ([]byte, error) {
 
 	for i := 0; i < uniqueAttempts; i++ {
 
-		var (
-			v   []byte
-			err error
-		)
-
-		switch cr.Type {
-		case misc.ValueTypeTemplate:
-			v, err = misc.TemplateExec(
-				cr.Value,
-				&td,
-			)
-			if err != nil {
-				return []byte{}, fmt.Errorf("filter: value compile template: %w", err)
-			}
-		case misc.ValueTypeCommand:
-
-			var stderr, stdout bytes.Buffer
-
-			cmd := exec.Command(cr.Value)
-
-			cmd.Stdout = &stdout
-			cmd.Stderr = &stderr
-
-			cmd.Env = tde
-
-			if err := cmd.Run(); err != nil {
-
-				e, b := err.(*exec.ExitError)
-				if b == false {
-					return []byte{}, fmt.Errorf("filter: value exec command: %w", err)
-				}
-
-				return []byte{}, fmt.Errorf("filter: value exec command: bad exit code %d: %s", e.ExitCode(), stderr.String())
-			}
-
-			v = stdout.Bytes()
-
-		default:
-			return []byte{}, fmt.Errorf("filter: value compile: unknown type")
+		v, err := execFilter(
+			execFilterOpts{
+				t: cr.Type,
+				v: cr.Value,
+			},
+			td,
+			tde)
+		if err != nil {
+			return []byte{}, fmt.Errorf("apply filter: %w", err)
 		}
-
-		v = bytes.ReplaceAll(v, []byte("\n"), []byte("\\n"))
 
 		if cr.Unique == false {
 			return v, nil
@@ -433,6 +527,34 @@ func (filter *Filter) applyColumnFilter(cn string, cr ColumnRuleOpts, td misc.Te
 	return []byte{}, fmt.Errorf("filter: unable to generate unique value for column `%s.%s`, check filter value for this column in config", filter.tableData.name, cn)
 }
 
+func (filter *Filter) applyLinkFilter(cn string, cr ColumnRuleOpts, u map[string]any, td any, tde []string) ([]byte, error) {
+
+	for i := 0; i < uniqueAttempts; i++ {
+
+		v, err := execFilter(
+			execFilterOpts{
+				t: cr.Type,
+				v: cr.Value,
+			},
+			td,
+			tde)
+		if err != nil {
+			return []byte{}, fmt.Errorf("apply link filter: %w", err)
+		}
+
+		if cr.Unique == false {
+			return v, nil
+		}
+
+		if _, b := u[string(v)]; b == false {
+			u[string(v)] = nil
+			return v, nil
+		}
+	}
+
+	return []byte{}, fmt.Errorf("apply link filter: unable to generate unique value for column `%s.%s`, check filter value for this column in config", filter.tableData.name, cn)
+}
+
 // rowCleanup cleanups current row values
 func (filter *Filter) rowCleanup() {
 	filter.tableData.values = []rowValue{}
@@ -451,46 +573,43 @@ func bcopy(b []byte) []byte {
 	return d
 }
 
-func makeVariable(cr VariableRuleOpts) (string, error) {
+func execFilter(f execFilterOpts, td any, tde []string) (v []byte, err error) {
 
-	var (
-		v   []byte
-		err error
-	)
-
-	switch cr.Type {
+	switch f.t {
 	case misc.ValueTypeTemplate:
 		v, err = misc.TemplateExec(
-			cr.Value,
-			nil,
+			f.v,
+			td,
 		)
 		if err != nil {
-			return "", fmt.Errorf("variable: value compile template: %w", err)
+			return []byte{}, fmt.Errorf("filter: value compile template: %w", err)
 		}
 	case misc.ValueTypeCommand:
 
 		var stderr, stdout bytes.Buffer
 
-		cmd := exec.Command(cr.Value)
+		cmd := exec.Command(f.v)
 
 		cmd.Stdout = &stdout
 		cmd.Stderr = &stderr
+
+		cmd.Env = tde
 
 		if err := cmd.Run(); err != nil {
 
 			e, b := err.(*exec.ExitError)
 			if b == false {
-				return "", fmt.Errorf("variable: value exec command: %w", err)
+				return []byte{}, fmt.Errorf("filter: value exec command: %w", err)
 			}
 
-			return "", fmt.Errorf("variable: value exec command: bad exit code %d: %s", e.ExitCode(), stderr.String())
+			return []byte{}, fmt.Errorf("filter: value exec command: bad exit code %d: %s", e.ExitCode(), stderr.String())
 		}
 
 		v = stdout.Bytes()
 
 	default:
-		return "", fmt.Errorf("variable: value compile: unknown type")
+		return []byte{}, fmt.Errorf("filter: value compile: unknown type")
 	}
 
-	return string(bytes.ReplaceAll(v, []byte("\n"), []byte("\\n"))), nil
+	return bytes.ReplaceAll(v, []byte("\n"), []byte("\\n")), nil
 }

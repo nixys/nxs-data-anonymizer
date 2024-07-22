@@ -13,6 +13,7 @@ type confOpts struct {
 
 	Progress  progressConf                  `conf:"progress"`
 	Filters   map[string]filterConf         `conf:"filters"`
+	Link      []linkConf                    `conf:"link"`
 	Security  securityConf                  `conf:"security"`
 	Variables map[string]variableFilterConf `conf:"variables"`
 
@@ -32,6 +33,11 @@ type columnFilterConf struct {
 	Type   string `conf:"type" conf_extraopts:"default=template"`
 	Value  string `conf:"value" conf_extraopts:"required"`
 	Unique bool   `conf:"unique"`
+}
+
+type linkConf struct {
+	Rule columnFilterConf    `conf:"rule"`
+	With map[string][]string `conf:"with" conf_extraopts:"required"`
 }
 
 type variableFilterConf struct {

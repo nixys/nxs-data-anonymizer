@@ -20,6 +20,7 @@ type InitOpts struct {
 	Variables map[string]relfilter.VariableRuleOpts
 	Security  SecurityOpts
 	Rules     RulesOpts
+	Link      []relfilter.LinkOpts
 }
 
 type RulesOpts struct {
@@ -62,6 +63,7 @@ func userCtxInit(s InitOpts) (*userCtx, error) {
 	f, err := relfilter.Init(
 		relfilter.InitOpts{
 			Variables:        s.Variables,
+			Link:             s.Link,
 			TableRules:       s.Rules.TableRules,
 			DefaultRules:     s.Rules.DefaultRules,
 			ExceptionColumns: s.Rules.ExceptionColumns,
