@@ -13,8 +13,9 @@ nxs-data-anonymizer is a tool for anonymizing **PostgreSQL** and **MySQL/MariaDB
   - MySQL/MariaDB/Percona (5.7/8.0/8.1/all versions)
 - Flexible data faking based on:
   - Go templates and [Sprig template’s library](https://masterminds.github.io/sprig/) like [Helm](https://helm.sh/docs/chart_template_guide/functions_and_pipelines/). You may also use values of other columns for same row to build more flexible rules
-  - External commands you may execute to create table field value
+  - External commands you may execute to create table field value2
   - Security enforcement rules
+  - Link cells across the database to generate the same values
 - Stream data processing. It means that you can a use the tool through a pipe in command line and redirect dump from source DB directly to the destination DB with required transformations
 - Easy to integrate into your CI/CD
 
@@ -244,6 +245,7 @@ Default configuration file path: `/nxs-data-anonymizer.conf`. The file is repres
 | `loglevel`     | String | No       | `info`        | Log level. Available values: `debug`, `warn`, `error` and `info` |
 | `progress`     | [Progress](#progress-settings) | No | - | Anonymization progress logging |
 | `variables`     | Map of [Variables](#variables-settings) (key: variable name) | No | - | Global variables to be used in a filters. Variables are set at the init of application and remain unchanged during the runtime  |
+| `link`     | Slice of [Link](#link-settings) | No | - | Rules to link specified columns across the database  |
 | `filters`          | Map of [Filters](#filters-settings) (key: table name) | No      | -             | Filters set for specified tables (key as a table name). Note: for PgSQL you also need to specify a scheme (e.g. `public.tablename`) |
 | `security`     | [Security](#security-settings) | No       | -      | Security enforcement for anonymizer |
 
@@ -261,6 +263,21 @@ Default configuration file path: `/nxs-data-anonymizer.conf`. The file is repres
 |---            | :---:  | :---:    | :---:         |---                                                               |
 | `type`        | String | No       | `template`    | Type of field `value`: `template` and `command` are available  |
 | `value`       | String | Yes      | -             | The value to be used as global variable value within the filters. In accordance with the `type` this value may be either `Go template` or `command`. See below for details|
+
+##### Link settings
+
+Link is used to create the same data with specified rules for different cells across the database.
+
+Each link element has following properties:
+- Able to contain multiple tables and columns for each table
+- All specified cells with the same data before anonymization will have same data after 
+- One common rule to generate new values
+
+| Option        | Type   | Required | Default value | Description                                                      |
+|---            | :---:  | :---:    | :---:         |---                                                               |
+| `type`        | String | No       | `template`    | Type of field `value`: `template` and `command` are available  |
+| `value`       | String | Yes      | -             | The value to be used to replace at every cell in specified column. In accordance with the `type` this value may be either `Go template` or `command`. See below for details|
+| `unique`      | Bool   | No       | `false`       | If true checks the generated value for cell is unique whole an all columns specified for `link` element |
 
 ##### Filters settings
 

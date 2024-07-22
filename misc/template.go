@@ -16,36 +16,9 @@ type TemplateData struct {
 }
 
 // TemplateExec makes message from given template `tpl` and data `d`
-func TemplateExec(tpl string, d *TemplateData) ([]byte, error) {
+func TemplateExec(tpl string, d any) ([]byte, error) {
 
-	type tplData struct {
-		TableName string
-		Values    map[string]string
-		Variables map[string]string
-	}
-
-	var (
-		b  bytes.Buffer
-		td *tplData
-	)
-
-	if d != nil {
-		td = &tplData{
-			TableName: d.TableName,
-			Values:    make(map[string]string),
-			Variables: make(map[string]string),
-		}
-
-		for k, v := range d.Values {
-			if v == nil {
-				td.Values[k] = null
-			} else {
-				td.Values[k] = string(v)
-			}
-		}
-
-		td.Variables = d.Variables
-	}
+	var b bytes.Buffer
 
 	// See http://masterminds.github.io/sprig/ for details
 	t, err := ttemplate.New("template").Funcs(func() ttemplate.FuncMap {
@@ -70,7 +43,7 @@ func TemplateExec(tpl string, d *TemplateData) ([]byte, error) {
 		return []byte{}, err
 	}
 
-	err = t.Execute(&b, td)
+	err = t.Execute(&b, d)
 	if err != nil {
 		return []byte{}, err
 	}

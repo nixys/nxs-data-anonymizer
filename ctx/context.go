@@ -196,6 +196,21 @@ func AppCtxInit() (any, error) {
 		return cc
 	}()
 
+	lnk := []relfilter.LinkOpts{}
+	for _, l := range conf.Link {
+		lnk = append(
+			lnk,
+			relfilter.LinkOpts{
+				Rule: relfilter.ColumnRuleOpts{
+					Type:   misc.ValueTypeFromString(l.Rule.Type),
+					Value:  l.Rule.Value,
+					Unique: l.Rule.Unique,
+				},
+				With: l.With,
+			},
+		)
+	}
+
 	switch args.DBType {
 	case DBTypeMySQL:
 		c.Anonymizer, err = mysql_anonymize.Init(
@@ -213,6 +228,7 @@ func AppCtxInit() (any, error) {
 					ExceptionColumns: conf.Security.Exceptions.Columns,
 					TypeRuleCustom:   trc,
 				},
+				Link: lnk,
 			},
 		)
 		if err != nil {
@@ -237,6 +253,7 @@ func AppCtxInit() (any, error) {
 					ExceptionColumns: conf.Security.Exceptions.Columns,
 					TypeRuleCustom:   trc,
 				},
+				Link: lnk,
 			},
 		)
 		if err != nil {
