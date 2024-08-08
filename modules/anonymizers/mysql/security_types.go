@@ -15,7 +15,7 @@ var typeRuleDefault = []relfilter.TypeRuleOpts{
 
 	// String
 	{
-		Selector: "(?i)^char",
+		Selector: "(?i)^char\\((\\d+)\\)|^char ",
 		Rule: relfilter.ColumnRuleOpts{
 			Type:   misc.ValueTypeTemplate,
 			Value:  securityTypeString,

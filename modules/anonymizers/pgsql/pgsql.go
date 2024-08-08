@@ -53,13 +53,6 @@ type securityCtx struct {
 
 func userCtxInit(s InitOpts) (*userCtx, error) {
 
-	trc := []relfilter.TypeRuleOpts{}
-	trd := []relfilter.TypeRuleOpts{}
-	if s.Security.ColumnsPolicy == misc.SecurityPolicyColumnsRandomize {
-		trc = s.Rules.TypeRuleCustom
-		trd = typeRuleDefault
-	}
-
 	f, err := relfilter.Init(
 		relfilter.InitOpts{
 			Variables:        s.Variables,
@@ -67,8 +60,9 @@ func userCtxInit(s InitOpts) (*userCtx, error) {
 			TableRules:       s.Rules.TableRules,
 			DefaultRules:     s.Rules.DefaultRules,
 			ExceptionColumns: s.Rules.ExceptionColumns,
-			TypeRuleCustom:   trc,
-			TypeRuleDefault:  trd,
+			TypeRuleCustom:   s.Rules.TypeRuleCustom,
+			TypeRuleDefault:  typeRuleDefault,
+			ColumnsPolicy:    s.Security.ColumnsPolicy,
 		},
 	)
 	if err != nil {

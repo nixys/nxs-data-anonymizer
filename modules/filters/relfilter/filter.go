@@ -18,6 +18,8 @@ type InitOpts struct {
 	DefaultRules     map[string]ColumnRuleOpts
 	ExceptionColumns []string
 
+	ColumnsPolicy misc.SecurityPolicyColumnsType
+
 	TypeRuleCustom  []TypeRuleOpts
 	TypeRuleDefault []TypeRuleOpts
 }
@@ -62,6 +64,8 @@ type rules struct {
 	tableRules       map[string]map[string]ColumnRuleOpts
 	defaultRules     map[string]ColumnRuleOpts
 	exceptionColumns map[string]any
+
+	columnsPolicy misc.SecurityPolicyColumnsType
 
 	typeRuleCustom  []typeRule
 	typeRuleDefault []typeRule
@@ -108,10 +112,12 @@ type execFilterOpts struct {
 const uniqueAttempts = 5
 
 const (
-	envVarGlobalPrefix = "ENVVARGLOBAL_"
-	envVarTable        = "ENVVARTABLE"
-	envVarColumnPrefix = "ENVVARCOLUMN_"
-	envVarCurColumn    = "ENVVARCURCOLUMN"
+	envVarGlobalPrefix          = "ENVVARGLOBAL_"
+	envVarTable                 = "ENVVARTABLE"
+	envVarColumnPrefix          = "ENVVARCOLUMN_"
+	envVarCurColumn             = "ENVVARCURCOLUMN"
+	envVarColumnTypeRAW         = "ENVVARCOLUMNTYPERAW"
+	envVarColumnTypeGroupPrefix = "ENVVARCOLUMNTYPEGROUP_"
 )
 
 type applyRule struct {
@@ -219,6 +225,7 @@ func Init(opts InitOpts) (*Filter, error) {
 			exceptionColumns: excpts,
 			typeRuleCustom:   trc,
 			typeRuleDefault:  trd,
+			columnsPolicy:    opts.ColumnsPolicy,
 		},
 	}, nil
 }
@@ -247,7 +254,26 @@ func (filter *Filter) TableRulesLookup(name string) map[string]ColumnRuleOpts {
 
 // ColumnAdd adds new column into current data set
 func (filter *Filter) ColumnAdd(name string, rt string) {
-	filter.tableData.columns.add(name, rt)
+
+	//var rl *ColumnRuleOpts
+
+	for _, r := range filter.rules.typeRuleCustom {
+		gd := r.Rgx.FindAllStringSubmatch(rt, -1)
+		if len(gd) > 0 {
+			filter.tableData.columns.add(name, rt, gd, &r.Rule)
+			return
+		}
+	}
+
+	for _, r := range filter.rules.typeRuleDefault {
+		gd := r.Rgx.FindAllStringSubmatch(rt, -1)
+		if len(gd) > 0 {
+			filter.tableData.columns.add(name, rt, gd, &r.Rule)
+			return
+		}
+	}
+
+	filter.tableData.columns.add(name, rt, nil, nil)
 }
 
 func (filter *Filter) ColumnGetName(index int) string {
@@ -346,47 +372,21 @@ func (filter *Filter) Apply() error {
 			continue
 		}
 
-		// Check custom type rule for column
-		if b := func() bool {
-			for _, r := range filter.rules.typeRuleCustom {
-				if r.Rgx.Match([]byte(c.rawType)) {
-					rls = append(
-						rls,
-						applyRule{
-							c:  c,
-							i:  i,
-							cr: r.Rule,
-						},
-					)
-					return true
-				}
-			}
-			return false
-		}(); b {
-			continue
-		}
-
-		// Check default type rule for column
-		if b := func() bool {
-			for _, r := range filter.rules.typeRuleDefault {
-				if r.Rgx.Match([]byte(c.rawType)) {
-					rls = append(
-						rls,
-						applyRule{
-							c:  c,
-							i:  i,
-							cr: r.Rule,
-						},
-					)
-					return true
-				}
-			}
-			return false
-		}(); b {
-			continue
-		}
-
 		// Other rules if required
+
+		// Default rules for types
+		if filter.rules.columnsPolicy == misc.SecurityPolicyColumnsRandomize {
+			if c.t.r != nil {
+				rls = append(
+					rls,
+					applyRule{
+						c:  c,
+						i:  i,
+						cr: *c.t.r,
+					},
+				)
+			}
+		}
 	}
 
 	// Apply rules
@@ -454,28 +454,31 @@ func (filter *Filter) applyRules(tname string, rls []applyRule) error {
 		} else {
 
 			type tplData struct {
-				TableName string
-				Values    map[string]string
-				Variables map[string]string
+				TableName        string
+				CurColumnName    string
+				Values           map[string]string
+				Variables        map[string]string
+				ColumnTypeRaw    string
+				ColumnTypeGroups [][]string
 			}
 
 			td := tplData{
-				TableName: tname,
-				Values:    valOld,
-				Variables: filter.rules.variables,
+				TableName:        tname,
+				CurColumnName:    r.c.n,
+				Values:           valOld,
+				Variables:        filter.rules.variables,
+				ColumnTypeRaw:    r.c.t.raw,
+				ColumnTypeGroups: r.c.t.groups,
 			}
 
-			tdenv := []string{
+			tde := []string{
 				fmt.Sprintf("%s=%s", envVarTable, tname),
+				fmt.Sprintf("%s=%s", envVarCurColumn, r.c.n),
 			}
 
-			// Create tmp env variables with current column name
-			tde := append(
-				tdenv,
-				fmt.Sprintf("%s=%s", envVarCurColumn, r.c.n),
-			)
-
-			tdenv = append(tdenv, valEnvGlob...)
+			tde = append(tde, valEnvOld...)
+			tde = append(tde, valEnvGlob...)
+			tde = append(tde, r.c.t.env...)
 
 			v, err = filter.applyColumnFilter(r.c.n, r.cr, td, tde)
 			if err != nil {
