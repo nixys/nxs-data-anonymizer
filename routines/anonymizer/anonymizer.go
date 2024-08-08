@@ -42,7 +42,9 @@ func Runtime(app appctx.App) error {
 
 	timer = time.NewTimer(cc.Progress.Rhythm)
 	if cc.Progress.Rhythm == 0 {
-		timer.Stop()
+		if !timer.Stop() {
+			<-timer.C
+		}
 	}
 
 	if err := anonymize(
