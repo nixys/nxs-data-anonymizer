@@ -13,7 +13,7 @@ nxs-data-anonymizer is a tool for anonymizing **PostgreSQL** and **MySQL/MariaDB
   - MySQL/MariaDB/Percona (5.7/8.0/8.1/all versions)
 - Flexible data faking based on:
   - Go templates and [Sprig template’s library](https://masterminds.github.io/sprig/) like [Helm](https://helm.sh/docs/chart_template_guide/functions_and_pipelines/). You may also use values of other columns for same row to build more flexible rules
-  - External commands you may execute to create table field value2
+  - External commands you may execute to create table field values
   - Security enforcement rules
   - Link cells across the database to generate the same values
 - Stream data processing. It means that you can a use the tool through a pipe in command line and redirect dump from source DB directly to the destination DB with required transformations
@@ -304,8 +304,12 @@ Additional filter functions:
 - `isNull`: compare a field value with `NULL`
 
 You may also use the following data in a templates:
+- Current table name. Statement: `{{ .TableName }}`
+- Current column name. Statement: `{{ .CurColumnName }}`
 - Values of other columns in the rules for same row (with values before substitutions). Statement: `{{ .Values.COLUMN_NAME }}` (e.g.: `{{ .Values.username }}`)
 - Global variables. Statement: `{{ .Variables.VARIABLE_NAME }}` (e.g.: `{{ .Variables.password }}`)  
+- Raw column data type. Statement: `{{ .ColumnTypeRaw }}`
+- Regex's capturing groups for the column data type. This variable has array type so you need to use `range` or `index` to access specific element. Statement: `{{ index .ColumnTypeGroups 0 0 }}`. See [Types](#types-settings) for details
 
 **Command**
 
@@ -313,10 +317,12 @@ To anonymize a database fields you may use a commands (scripts or binaries) with
 - The command's `stdout` will be used as a new value for the anonymized field
 - Command must return zero exit code, otherwise nxs-data-anonymizer will falls with error (in this case `stderr` will be used as an error text)
 - Environment variables with the row data are available within the command:
-  - `ENVVARTABLE`: contains a name of the filtered table
-  - `ENVVARCURCOLUMN`: contains the current column name 
-  - `ENVVARGLOBAL_{VARIABLE_NAME}`: contains value for specified global variable
+  - `ENVVARTABLE`: contains a name of the current table
+  - `ENVVARCURCOLUMN`: contains the current column name
   - `ENVVARCOLUMN_{COLUMN_NAME}`: contains values (before substitutions) for all columns for the current row
+  - `ENVVARGLOBAL_{VARIABLE_NAME}`: contains value for specified global variable
+  - `ENVVARCOLUMNTYPERAW`: contains raw column data type
+  - `ENVVARCOLUMNTYPEGROUP_{GROUP_NUM}_{SUBGROUPNUM}`: contains regex's capturing groups for the column data type. See [Types](#types-settings) for details
 
 ##### Security settings
 
@@ -410,7 +416,7 @@ _Values to masquerade a columns in accordance with the types see below._
 
 | Option         | Type   | Required | Default value | Description                                                      |
 |---             | :---:  | :---:    | :---:         |---                                                               |
-| `regex`      | String | Yes       | -      | Regular expression. Will be checked for match for column data type (in `CREATE TABLE` section) |
+| `regex`      | String | Yes       | -      | Regular expression. Will be checked for match for column data type (in `CREATE TABLE` section). Able to use capturing groups within the regex that available as an additional variable data in the filters (see [Columns](#columns-settings) for details). This ability helps to create more flexible rules to generate the cells value in accordance with  data type  features |
 | `rule`      | [Columns](#columns-settings) | Yes       | -      | Rule will be applied columns with data types matched for specified regular expression |
 
 #### Example
