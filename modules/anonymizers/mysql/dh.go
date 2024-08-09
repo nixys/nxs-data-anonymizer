@@ -64,26 +64,27 @@ func dhCreateTableColumnAdd(usrCtx any, deferred, token []byte) ([]byte, error) 
 	if strings.Contains(trawUpper, " GENERATED ") == false {
 
 		i := strings.IndexAny(strings.TrimSpace(trawUpper), " (,")
-		if i != -1 {
-
-			ct := columnTypeNone
-			for k, v := range typeKeys {
-				if trawUpper[0:i] == k {
-					ct = v
-				}
-			}
-
-			t, b := uctx.tables[uctx.filter.TableNameGet()]
-			if b {
-				t[uctx.columnName] = ct
-			} else {
-				t = make(map[string]columnType)
-				t[uctx.columnName] = ct
-			}
-			uctx.tables[uctx.filter.TableNameGet()] = t
-
-			uctx.filter.ColumnAdd(uctx.columnName, traw)
+		if i == -1 {
+			i = len(trawUpper)
 		}
+
+		ct := columnTypeNone
+		for k, v := range typeKeys {
+			if trawUpper[0:i] == k {
+				ct = v
+			}
+		}
+
+		t, b := uctx.tables[uctx.filter.TableNameGet()]
+		if b {
+			t[uctx.columnName] = ct
+		} else {
+			t = make(map[string]columnType)
+			t[uctx.columnName] = ct
+		}
+		uctx.tables[uctx.filter.TableNameGet()] = t
+
+		uctx.filter.ColumnAdd(uctx.columnName, traw)
 	}
 
 	uctx.columnName = ""
