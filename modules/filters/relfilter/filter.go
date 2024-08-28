@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os/exec"
 	"regexp"
+	"strings"
 
 	"github.com/nixys/nxs-data-anonymizer/misc"
 )
@@ -591,7 +592,10 @@ func execFilter(f execFilterOpts, td any, tde []string) (v []byte, err error) {
 
 		var stderr, stdout bytes.Buffer
 
-		cmd := exec.Command(f.v)
+		parsed_cmd := strings.Split(f.v, " ")
+		name := parsed_cmd[0]
+		args := parsed_cmd[1:]
+		cmd := exec.Command(name, args...)
 
 		cmd.Stdout = &stdout
 		cmd.Stderr = &stderr
