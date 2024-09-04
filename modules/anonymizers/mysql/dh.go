@@ -3,6 +3,7 @@ package mysql_anonymize
 import (
 	"bytes"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/nixys/nxs-data-anonymizer/misc"
@@ -54,6 +55,16 @@ func dhCreateTableFieldName(usrCtx any, deferred, token []byte) ([]byte, error) 
 	return append(deferred, token...), nil
 }
 
+// checkGenerated returns true when specified type is `generated`
+// See: https://dev.mysql.com/blog-archive/generated-columns-in-mysql-5-7-5 for details
+func checkGenerated(t string) bool {
+	if strings.Contains(t, "AS") == true {
+		b, _ := regexp.Match("^([A-Z]+)((\\([0-9]+\\) )| )(GENERATED ALWAYS AS|AS)", []byte(t))
+		return b
+	}
+	return false
+}
+
 func dhCreateTableColumnAdd(usrCtx any, deferred, token []byte) ([]byte, error) {
 
 	uctx := usrCtx.(*userCtx)
@@ -61,7 +72,7 @@ func dhCreateTableColumnAdd(usrCtx any, deferred, token []byte) ([]byte, error) 
 	traw := strings.TrimSpace(string(deferred))
 	trawUpper := strings.ToUpper(traw)
 
-	if strings.Contains(trawUpper, " GENERATED ") == false {
+	if checkGenerated(trawUpper) == false {
 
 		i := strings.IndexAny(strings.TrimSpace(trawUpper), " (,")
 		if i != -1 {
