@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"regexp"
-	"strings"
 
 	"github.com/nixys/nxs-data-anonymizer/misc"
 )
@@ -57,9 +56,9 @@ func dhCreateTableFieldName(usrCtx any, deferred, token []byte) ([]byte, error) 
 
 // checkGenerated returns true when specified type is `generated`
 // See: https://dev.mysql.com/blog-archive/generated-columns-in-mysql-5-7-5 for details
-func checkGenerated(t string) bool {
-	if strings.Contains(t, "AS") == true {
-		b, _ := regexp.Match("^([A-Z]+)((\\([0-9]+\\) )| )(GENERATED ALWAYS AS|AS)", []byte(t))
+func checkGenerated(t []byte) bool {
+	if bytes.Contains(t, []byte{'A', 'S'}) == true {
+		b, _ := regexp.Match("^([A-Z]+)((\\([0-9]+\\) )| )(GENERATED ALWAYS AS|AS)", t)
 		return b
 	}
 	return false
@@ -69,32 +68,26 @@ func dhCreateTableColumnAdd(usrCtx any, deferred, token []byte) ([]byte, error) 
 
 	uctx := usrCtx.(*userCtx)
 
-	traw := strings.TrimSpace(string(deferred))
-	trawUpper := strings.ToUpper(traw)
+	traw := bytes.TrimSpace(deferred)
+	trawUpper := bytes.ToUpper(traw)
 
 	if checkGenerated(trawUpper) == false {
 
-		i := strings.IndexAny(strings.TrimSpace(trawUpper), " (,")
-		if i != -1 {
-
-			ct := columnTypeNone
-			for k, v := range typeKeys {
-				if trawUpper[0:i] == k {
-					ct = v
-				}
-			}
-
-			t, b := uctx.tables[uctx.filter.TableNameGet()]
-			if b {
-				t[uctx.columnName] = ct
-			} else {
-				t = make(map[string]columnType)
-				t[uctx.columnName] = ct
-			}
-			uctx.tables[uctx.filter.TableNameGet()] = t
-
-			uctx.filter.ColumnAdd(uctx.columnName, traw)
+		t, b := uctx.tables[uctx.filter.TableNameGet()]
+		if !b {
+			t = make(map[string]columnType)
 		}
+		t[uctx.columnName] = columnTypeNone
+
+		for _, ot := range uctx.optKinds {
+			if ot.r.Match(trawUpper) == true {
+				t[uctx.columnName] = ot.t
+				break
+			}
+		}
+
+		uctx.tables[uctx.filter.TableNameGet()] = t
+		uctx.filter.ColumnAdd(uctx.columnName, string(traw))
 	}
 
 	uctx.columnName = ""
