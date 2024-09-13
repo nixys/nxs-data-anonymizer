@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"regexp"
 
 	"github.com/nixys/nxs-data-anonymizer/misc"
 	"github.com/nixys/nxs-data-anonymizer/modules/filters/relfilter"
@@ -41,6 +42,7 @@ type userCtx struct {
 	columnName string
 	security   securityCtx
 	tables     map[string]map[string]columnType
+	optKinds   []optKind
 }
 
 type securityCtx struct {
@@ -49,6 +51,11 @@ type securityCtx struct {
 
 	tablesPolicy    misc.SecurityPolicyTablesType
 	tableExceptions map[string]any
+}
+
+type optKind struct {
+	r *regexp.Regexp
+	t columnType
 }
 
 type columnType string
@@ -67,44 +74,39 @@ func (c columnType) String() string {
 var typeKeys = map[string]columnType{
 
 	// Strings
-	"CHAR":       columnTypeString,
-	"VARCHAR":    columnTypeString,
-	"TINYTEXT":   columnTypeString,
-	"TEXT":       columnTypeString,
-	"MEDIUMTEXT": columnTypeString,
-	"LONGTEXT":   columnTypeString,
-	"ENUM":       columnTypeString,
-	"SET":        columnTypeString,
-	"DATE":       columnTypeString,
-	"DATETIME":   columnTypeString,
-	"TIMESTAMP":  columnTypeString,
-	"TIME":       columnTypeString,
-	"YEAR":       columnTypeString,
-	"JSON":       columnTypeString,
+	"^CHAR":       columnTypeString,
+	"^VARCHAR":    columnTypeString,
+	"^TINYTEXT":   columnTypeString,
+	"^TEXT":       columnTypeString,
+	"^MEDIUMTEXT": columnTypeString,
+	"^LONGTEXT":   columnTypeString,
+	"^ENUM":       columnTypeString,
+	"^SET":        columnTypeString,
+	"^DATE":       columnTypeString,
+	"^DATETIME":   columnTypeString,
+	"^TIME":       columnTypeString,
+	"^YEAR":       columnTypeString,
+	"^JSON":       columnTypeString,
 
 	// Numeric
-	"BIT":              columnTypeNum,
-	"BOOL":             columnTypeNum,
-	"BOOLEAN":          columnTypeNum,
-	"TINYINT":          columnTypeNum,
-	"SMALLINT":         columnTypeNum,
-	"MEDIUMINT":        columnTypeNum,
-	"INT":              columnTypeNum,
-	"INTEGER":          columnTypeNum,
-	"BIGINT":           columnTypeNum,
-	"FLOAT":            columnTypeNum,
-	"DOUBLE":           columnTypeNum,
-	"DOUBLE precision": columnTypeNum,
-	"DECIMAL":          columnTypeNum,
-	"DEC":              columnTypeNum,
+	"^BIT":       columnTypeNum,
+	"^BOOL":      columnTypeNum,
+	"^TINYINT":   columnTypeNum,
+	"^SMALLINT":  columnTypeNum,
+	"^MEDIUMINT": columnTypeNum,
+	"^INT":       columnTypeNum,
+	"^BIGINT":    columnTypeNum,
+	"^FLOAT":     columnTypeNum,
+	"^DOUBLE":    columnTypeNum,
+	"^DEC":       columnTypeNum,
 
 	// Binary
-	"BINARY":     columnTypeBinary,
-	"VARBINARY":  columnTypeBinary,
-	"TINYBLOB":   columnTypeBinary,
-	"BLOB":       columnTypeBinary,
-	"MEDIUMBLOB": columnTypeBinary,
-	"LONGBLOB":   columnTypeBinary,
+	"^BINARY":     columnTypeBinary,
+	"^VARBINARY":  columnTypeBinary,
+	"^TINYBLOB":   columnTypeBinary,
+	"^BLOB":       columnTypeBinary,
+	"^MEDIUMBLOB": columnTypeBinary,
+	"^LONGBLOB":   columnTypeBinary,
 }
 
 func userCtxInit(s InitOpts) (*userCtx, error) {
@@ -125,6 +127,21 @@ func userCtxInit(s InitOpts) (*userCtx, error) {
 		return nil, fmt.Errorf("user ctx init: %w", err)
 	}
 
+	ok := []optKind{}
+	for o, t := range typeKeys {
+		r, err := regexp.Compile(o)
+		if err != nil {
+			return nil, fmt.Errorf("user ctx init: %w", err)
+		}
+		ok = append(
+			ok,
+			optKind{
+				r: r,
+				t: t,
+			},
+		)
+	}
+
 	return &userCtx{
 		filter: f,
 		security: securityCtx{
@@ -137,7 +154,8 @@ func userCtxInit(s InitOpts) (*userCtx, error) {
 				return excs
 			}(),
 		},
-		tables: make(map[string]map[string]columnType),
+		tables:   make(map[string]map[string]columnType),
+		optKinds: ok,
 	}, nil
 }
 
