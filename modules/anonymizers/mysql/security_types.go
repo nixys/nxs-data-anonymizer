@@ -116,7 +116,7 @@ var typeRuleDefault = []relfilter.TypeRuleOpts{
 		Selector: "(?i)^json",
 		Rule: relfilter.ColumnRuleOpts{
 			Type:   misc.ValueTypeTemplate,
-			Value:  "{\"randomized\": \"json_data\"}",,
+			Value:  "{\"randomized\": \"json_data\"}",
 			Unique: false,
 		},
 	},
