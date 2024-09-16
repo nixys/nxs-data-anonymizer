@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	securityTypeString = "randomized string data"
+	securityTypeString = "randomized string"
 	securityTypeNum    = "0"
 	securityTypeBinary = "cmFuZG9taXplZCBiaW5hcnkgZGF0YQo="
 )
@@ -15,18 +15,18 @@ var typeRuleDefault = []relfilter.TypeRuleOpts{
 
 	// String
 	{
-		Selector: "(?i)^char\\((\\d+)\\)|^char ",
+		Selector: "(?i)^char\\((\\d+)\\)|^char",
 		Rule: relfilter.ColumnRuleOpts{
 			Type:   misc.ValueTypeTemplate,
-			Value:  securityTypeString,
+			Value:  "{{ trunc (index .ColumnTypeGroups 0 1 | int ) \"randomized char\" }}",
 			Unique: false,
 		},
 	},
 	{
-		Selector: "(?i)^varchar",
+		Selector: "(?i)^varchar\\((\\d+)\\)|^varchar",
 		Rule: relfilter.ColumnRuleOpts{
 			Type:   misc.ValueTypeTemplate,
-			Value:  securityTypeString,
+			Value:  "{{ trunc (index .ColumnTypeGroups 0 1 | int ) \"randomized varchar\" }}",
 			Unique: false,
 		},
 	},
@@ -34,7 +34,7 @@ var typeRuleDefault = []relfilter.TypeRuleOpts{
 		Selector: "(?i)^tinytext",
 		Rule: relfilter.ColumnRuleOpts{
 			Type:   misc.ValueTypeTemplate,
-			Value:  securityTypeString,
+			Value:  "randomized tinytext",
 			Unique: false,
 		},
 	},
@@ -42,7 +42,7 @@ var typeRuleDefault = []relfilter.TypeRuleOpts{
 		Selector: "(?i)^text",
 		Rule: relfilter.ColumnRuleOpts{
 			Type:   misc.ValueTypeTemplate,
-			Value:  securityTypeString,
+			Value:  "randomized text",
 			Unique: false,
 		},
 	},
@@ -50,7 +50,7 @@ var typeRuleDefault = []relfilter.TypeRuleOpts{
 		Selector: "(?i)^mediumtext",
 		Rule: relfilter.ColumnRuleOpts{
 			Type:   misc.ValueTypeTemplate,
-			Value:  securityTypeString,
+			Value:  "randomized mediumtext",
 			Unique: false,
 		},
 	},
@@ -58,31 +58,23 @@ var typeRuleDefault = []relfilter.TypeRuleOpts{
 		Selector: "(?i)^longtext",
 		Rule: relfilter.ColumnRuleOpts{
 			Type:   misc.ValueTypeTemplate,
-			Value:  securityTypeString,
+			Value:  "randomized longtext",
 			Unique: false,
 		},
 	},
 	{
-		Selector: "(?i)^enum",
+		Selector: "(?i)^enum\\(.*'(.*)'.*\\)",
 		Rule: relfilter.ColumnRuleOpts{
 			Type:   misc.ValueTypeTemplate,
-			Value:  securityTypeString,
+			Value:  "{{ index .ColumnTypeGroups 0 1 }}",
 			Unique: false,
 		},
 	},
 	{
-		Selector: "(?i)^set",
+		Selector: "(?i)^set\\(.*'(.*)'.*\\)",
 		Rule: relfilter.ColumnRuleOpts{
 			Type:   misc.ValueTypeTemplate,
-			Value:  securityTypeString,
-			Unique: false,
-		},
-	},
-	{
-		Selector: "(?i)^date",
-		Rule: relfilter.ColumnRuleOpts{
-			Type:   misc.ValueTypeTemplate,
-			Value:  securityTypeString,
+			Value:  "{{ index .ColumnTypeGroups 0 1 }}",
 			Unique: false,
 		},
 	},
@@ -90,7 +82,15 @@ var typeRuleDefault = []relfilter.TypeRuleOpts{
 		Selector: "(?i)^datetime",
 		Rule: relfilter.ColumnRuleOpts{
 			Type:   misc.ValueTypeTemplate,
-			Value:  securityTypeString,
+			Value:  "2024-01-01 00:00:00",
+			Unique: false,
+		},
+	},
+	{
+		Selector: "(?i)^date",
+		Rule: relfilter.ColumnRuleOpts{
+			Type:   misc.ValueTypeTemplate,
+			Value:  "2024-01-01",
 			Unique: false,
 		},
 	},
@@ -98,7 +98,7 @@ var typeRuleDefault = []relfilter.TypeRuleOpts{
 		Selector: "(?i)^timestamp",
 		Rule: relfilter.ColumnRuleOpts{
 			Type:   misc.ValueTypeTemplate,
-			Value:  securityTypeString,
+			Value:  "2024-01-01 00:00:00",
 			Unique: false,
 		},
 	},
@@ -106,7 +106,7 @@ var typeRuleDefault = []relfilter.TypeRuleOpts{
 		Selector: "(?i)^time",
 		Rule: relfilter.ColumnRuleOpts{
 			Type:   misc.ValueTypeTemplate,
-			Value:  securityTypeString,
+			Value:  "00:00:00",
 			Unique: false,
 		},
 	},
@@ -114,7 +114,7 @@ var typeRuleDefault = []relfilter.TypeRuleOpts{
 		Selector: "(?i)^year",
 		Rule: relfilter.ColumnRuleOpts{
 			Type:   misc.ValueTypeTemplate,
-			Value:  securityTypeString,
+			Value:  "2024",
 			Unique: false,
 		},
 	},
