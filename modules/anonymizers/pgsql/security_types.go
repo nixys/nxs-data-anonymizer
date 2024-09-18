@@ -5,20 +5,22 @@ import (
 	"github.com/nixys/nxs-data-anonymizer/modules/filters/relfilter"
 )
 
-const (
-	securityTypeInt    = "0"
-	securityTypeFloat  = "0.0"
-	securityTypeString = "randomized string data"
-)
-
 var typeRuleDefault = []relfilter.TypeRuleOpts{
 
 	// Integer
 	{
+		Selector: "(?i)^boolean",
+		Rule: relfilter.ColumnRuleOpts{
+			Type:   misc.ValueTypeTemplate,
+			Value:  "0",
+			Unique: false,
+		},
+	},
+	{
 		Selector: "(?i)^smallint",
 		Rule: relfilter.ColumnRuleOpts{
 			Type:   misc.ValueTypeTemplate,
-			Value:  securityTypeInt,
+			Value:  "0",
 			Unique: false,
 		},
 	},
@@ -26,7 +28,7 @@ var typeRuleDefault = []relfilter.TypeRuleOpts{
 		Selector: "(?i)^integer",
 		Rule: relfilter.ColumnRuleOpts{
 			Type:   misc.ValueTypeTemplate,
-			Value:  securityTypeInt,
+			Value:  "0",
 			Unique: false,
 		},
 	},
@@ -34,7 +36,7 @@ var typeRuleDefault = []relfilter.TypeRuleOpts{
 		Selector: "(?i)^bigint",
 		Rule: relfilter.ColumnRuleOpts{
 			Type:   misc.ValueTypeTemplate,
-			Value:  securityTypeInt,
+			Value:  "0",
 			Unique: false,
 		},
 	},
@@ -42,7 +44,7 @@ var typeRuleDefault = []relfilter.TypeRuleOpts{
 		Selector: "(?i)^smallserial",
 		Rule: relfilter.ColumnRuleOpts{
 			Type:   misc.ValueTypeTemplate,
-			Value:  securityTypeInt,
+			Value:  "0",
 			Unique: false,
 		},
 	},
@@ -50,7 +52,7 @@ var typeRuleDefault = []relfilter.TypeRuleOpts{
 		Selector: "(?i)^serial",
 		Rule: relfilter.ColumnRuleOpts{
 			Type:   misc.ValueTypeTemplate,
-			Value:  securityTypeInt,
+			Value:  "0",
 			Unique: false,
 		},
 	},
@@ -58,7 +60,7 @@ var typeRuleDefault = []relfilter.TypeRuleOpts{
 		Selector: "(?i)^bigserial",
 		Rule: relfilter.ColumnRuleOpts{
 			Type:   misc.ValueTypeTemplate,
-			Value:  securityTypeInt,
+			Value:  "0",
 			Unique: false,
 		},
 	},
@@ -68,7 +70,7 @@ var typeRuleDefault = []relfilter.TypeRuleOpts{
 		Selector: "(?i)^decimal",
 		Rule: relfilter.ColumnRuleOpts{
 			Type:   misc.ValueTypeTemplate,
-			Value:  securityTypeFloat,
+			Value:  "0.0",
 			Unique: false,
 		},
 	},
@@ -76,7 +78,7 @@ var typeRuleDefault = []relfilter.TypeRuleOpts{
 		Selector: "(?i)^numeric",
 		Rule: relfilter.ColumnRuleOpts{
 			Type:   misc.ValueTypeTemplate,
-			Value:  securityTypeFloat,
+			Value:  "0.0",
 			Unique: false,
 		},
 	},
@@ -84,7 +86,7 @@ var typeRuleDefault = []relfilter.TypeRuleOpts{
 		Selector: "(?i)^real",
 		Rule: relfilter.ColumnRuleOpts{
 			Type:   misc.ValueTypeTemplate,
-			Value:  securityTypeFloat,
+			Value:  "0.0",
 			Unique: false,
 		},
 	},
@@ -92,7 +94,7 @@ var typeRuleDefault = []relfilter.TypeRuleOpts{
 		Selector: "(?i)^double",
 		Rule: relfilter.ColumnRuleOpts{
 			Type:   misc.ValueTypeTemplate,
-			Value:  securityTypeFloat,
+			Value:  "0.0",
 			Unique: false,
 		},
 	},
@@ -102,7 +104,7 @@ var typeRuleDefault = []relfilter.TypeRuleOpts{
 		Selector: "(?i)^character",
 		Rule: relfilter.ColumnRuleOpts{
 			Type:   misc.ValueTypeTemplate,
-			Value:  securityTypeString,
+			Value:  "randomized character data",
 			Unique: false,
 		},
 	},
@@ -110,7 +112,7 @@ var typeRuleDefault = []relfilter.TypeRuleOpts{
 		Selector: "(?i)^bpchar",
 		Rule: relfilter.ColumnRuleOpts{
 			Type:   misc.ValueTypeTemplate,
-			Value:  securityTypeString,
+			Value:  "randomized bpchar data",
 			Unique: false,
 		},
 	},
@@ -118,7 +120,43 @@ var typeRuleDefault = []relfilter.TypeRuleOpts{
 		Selector: "(?i)^text",
 		Rule: relfilter.ColumnRuleOpts{
 			Type:   misc.ValueTypeTemplate,
-			Value:  securityTypeString,
+			Value:  "randomized text data",
+			Unique: false,
+		},
+	},
+
+	// Date & time
+	{
+		Selector: "(?i)^date",
+		Rule: relfilter.ColumnRuleOpts{
+			Type:   misc.ValueTypeTemplate,
+			Value:  "2024-01-01",
+			Unique: false,
+		},
+	},
+	{
+		Selector: "(?i)^time",
+		Rule: relfilter.ColumnRuleOpts{
+			Type:   misc.ValueTypeTemplate,
+			Value:  "00:00:00",
+			Unique: false,
+		},
+	},
+
+	// Structures
+	{
+		Selector: "(?i)^jsonb",
+		Rule: relfilter.ColumnRuleOpts{
+			Type:   misc.ValueTypeTemplate,
+			Value:  "{\"randomized\": \"json_data\"}",
+			Unique: false,
+		},
+	},
+	{
+		Selector: "(?i)^xml",
+		Rule: relfilter.ColumnRuleOpts{
+			Type:   misc.ValueTypeTemplate,
+			Value:  "<note><body>Randomized XML</body></note>",
 			Unique: false,
 		},
 	},
