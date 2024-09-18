@@ -9,6 +9,14 @@ var typeRuleDefault = []relfilter.TypeRuleOpts{
 
 	// Integer
 	{
+		Selector: "(?i)^boolean",
+		Rule: relfilter.ColumnRuleOpts{
+			Type:   misc.ValueTypeTemplate,
+			Value:  "0",
+			Unique: false,
+		},
+	},
+	{
 		Selector: "(?i)^smallint",
 		Rule: relfilter.ColumnRuleOpts{
 			Type:   misc.ValueTypeTemplate,
@@ -113,6 +121,42 @@ var typeRuleDefault = []relfilter.TypeRuleOpts{
 		Rule: relfilter.ColumnRuleOpts{
 			Type:   misc.ValueTypeTemplate,
 			Value:  "randomized text data",
+			Unique: false,
+		},
+	},
+
+	// Date & time
+	{
+		Selector: "(?i)^date",
+		Rule: relfilter.ColumnRuleOpts{
+			Type:   misc.ValueTypeTemplate,
+			Value:  "2024-01-01",
+			Unique: false,
+		},
+	},
+	{
+		Selector: "(?i)^time",
+		Rule: relfilter.ColumnRuleOpts{
+			Type:   misc.ValueTypeTemplate,
+			Value:  "00:00:00",
+			Unique: false,
+		},
+	},
+
+	// Structures
+	{
+		Selector: "(?i)^jsonb",
+		Rule: relfilter.ColumnRuleOpts{
+			Type:   misc.ValueTypeTemplate,
+			Value:  "{\"randomized\": \"json_data\"}",
+			Unique: false,
+		},
+	},
+	{
+		Selector: "(?i)^xml",
+		Rule: relfilter.ColumnRuleOpts{
+			Type:   misc.ValueTypeTemplate,
+			Value:  "<note><body>Randomized XML</body></note>",
 			Unique: false,
 		},
 	},
