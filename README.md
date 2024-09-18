@@ -377,8 +377,8 @@ _Values to masquerade a columns in accordance with the types see below._
 | `double precision` | `0.0` |
 | `decimal` |          `0.0` |
 | `dec` |              `0.0` |
-| `char` |       `randomized char` (It will be truncated if the column size is not enough.)| 
-| `varchar` |    `randomized varchar` (It will be truncated if the column size is not enough.) | 
+| `char` |       `randomized char` (String will be truncated to "COLUMN_SIZE" length.)| 
+| `varchar` |    `randomized varchar` (String will be truncated to "COLUMN_SIZE" length.) | 
 | `tinytext` |   `randomized tinytext` | 
 | `text` |       `randomized text` | 
 | `mediumtext` | `randomized mediumtext` | 
