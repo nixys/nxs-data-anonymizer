@@ -40,7 +40,7 @@ CREATE TABLE `authors` (
 
 LOCK TABLES `authors` WRITE;
 /*!40000 ALTER TABLE `authors` DISABLE KEYS */;
-INSERT INTO `authors` VALUES (1,'mw9fNA8JPrNj2lHeH6rN','randomized string data','brett35@example.com','1999-12-31','2000-01-01 12:00:00'),(2,'2FROX3t0S1r4WdPSThoC','randomized string data','aracely46@example.com','1999-12-31','2000-01-01 12:00:00'),(3,'HuE3qh1Ix61Q2fmmfPJO','randomized string data','carroll.harris@example.com','1999-12-31','2000-01-01 12:00:00'),(4,'YU94T6mUWCJv9oumHck6','randomized string data','johns.janick@example.org','1999-12-31','2000-01-01 12:00:00'),(5,'g3YhtmD4mVJOGXUxxMBU','randomized string data','lakin.ramiro@example.net','1999-12-31','2000-01-01 12:00:00'),(6,'OydRNqWITbeQQSVmdEQg','randomized string data','judson33@example.com','1999-12-31','2000-01-01 12:00:00'),(7,'2HPCcDvdJLBUFq845Jxb','randomized string data','kaci.koch@example.net','1999-12-31','2000-01-01 12:00:00'),(8,'yLVOfFUbxyMWWw8iEOtU','randomized string data','jprosacco@example.net','1999-12-31','2000-01-01 12:00:00'),(9,'qtS4fpy6U29rhsbX4ick','randomized string data','kutch.kylie@example.com','1999-12-31','2000-01-01 12:00:00'),(10,'F9vplnug4KGYBDg215z6','randomized string data','hane.terrill@example.org','1999-12-31','2000-01-01 12:00:00');
+INSERT INTO `authors` VALUES (1,'bnGIuxoRK3DBxlLdDGab','randomized varchar','brett35@example.com','1999-12-31','2000-01-01 12:00:00'),(2,'PzrEgtmbWP6DNbCZGjF0','randomized varchar','aracely46@example.com','1999-12-31','2000-01-01 12:00:00'),(3,'hsfAPmS5C4qqGr10Gle8','randomized varchar','carroll.harris@example.com','1999-12-31','2000-01-01 12:00:00'),(4,'nk1eQP76vGwop7Bb64JO','randomized varchar','johns.janick@example.org','1999-12-31','2000-01-01 12:00:00'),(5,'KP0lAE5HvFBJ9zDoIjM6','randomized varchar','lakin.ramiro@example.net','1999-12-31','2000-01-01 12:00:00'),(6,'MyKqoyVyIPlOPyt1u987','randomized varchar','judson33@example.com','1999-12-31','2000-01-01 12:00:00'),(7,'iCpr3lEE4DW0yrYzhR2j','randomized varchar','kaci.koch@example.net','1999-12-31','2000-01-01 12:00:00'),(8,'b8plmktLLgRE9Q5ZIdTS','randomized varchar','jprosacco@example.net','1999-12-31','2000-01-01 12:00:00'),(9,'APavCimnMpPSunDQSWfc','randomized varchar','kutch.kylie@example.com','1999-12-31','2000-01-01 12:00:00'),(10,'60je6nuZHhUwAmyRQfg8','randomized varchar','hane.terrill@example.org','1999-12-31','2000-01-01 12:00:00');
 /*!40000 ALTER TABLE `authors` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -68,7 +68,7 @@ CREATE TABLE `posts` (
 
 LOCK TABLES `posts` WRITE;
 /*!40000 ALTER TABLE `posts` DISABLE KEYS */;
- 
+
 /*!40000 ALTER TABLE `posts` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
