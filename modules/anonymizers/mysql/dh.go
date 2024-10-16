@@ -27,11 +27,42 @@ func dhSecurityInsertIntoTableNameSearch(usrCtx any, deferred, token []byte) ([]
 	return []byte{}, nil
 }
 
-func dhSecurityNil(usrCtx any, deferred, token []byte) ([]byte, error) {
+func dhSecurityInsertIntoValues(usrCtx any, deferred, token []byte) ([]byte, error) {
 
 	uctx := usrCtx.(*userCtx)
 
 	if uctx.security.isSkip == true {
+		return []byte{}, nil
+	}
+
+	uctx.insertIntoBuf = append(uctx.insertIntoBuf, deferred...)
+	uctx.insertIntoBuf = append(uctx.insertIntoBuf, token...)
+
+	return []byte{}, nil
+}
+
+func dhSecurityInsertIntoValueSearch(usrCtx any, deferred, token []byte) ([]byte, error) {
+
+	uctx := usrCtx.(*userCtx)
+
+	if uctx.security.isSkip == true {
+		return []byte{}, nil
+	}
+
+	uctx.insertIntoBuf = append(uctx.insertIntoBuf, deferred...)
+
+	return []byte{}, nil
+}
+
+func dhSecurityValuesEnd(usrCtx any, deferred, token []byte) ([]byte, error) {
+
+	uctx := usrCtx.(*userCtx)
+
+	if uctx.security.isSkip == true {
+		return []byte{}, nil
+	}
+
+	if uctx.insertIntoBuf != nil {
 		return []byte{}, nil
 	}
 
@@ -111,17 +142,17 @@ func dhInsertIntoTableName(usrCtx any, deferred, token []byte) ([]byte, error) {
 		return []byte{}, nil
 	}
 
-	d := append(uctx.security.tmpBuf, append(deferred, token...)...)
+	uctx.insertIntoBuf = append(uctx.security.tmpBuf, append(deferred, token...)...)
 
 	uctx.security.isSkip = false
 	uctx.security.tmpBuf = []byte{}
 
 	// Check insert into table name
 	if tn != uctx.filter.TableNameGet() {
-		return d, fmt.Errorf("`create` and `insert into` table names are mismatch (create table: '%s', insert into table: '%s')", uctx.filter.TableNameGet(), tn)
+		return []byte{}, fmt.Errorf("`create` and `insert into` table names are mismatch (create table: '%s', insert into table: '%s')", uctx.filter.TableNameGet(), tn)
 	}
 
-	return d, nil
+	return []byte{}, nil
 }
 
 func dhCreateTableValues(usrCtx any, deferred, token []byte) ([]byte, error) {
@@ -173,7 +204,19 @@ func dhCreateTableValuesEnd(usrCtx any, deferred, token []byte) ([]byte, error) 
 		return []byte{}, err
 	}
 
-	return rowDataGen(uctx), nil
+	b := rowDataGen(uctx)
+	if b == nil {
+		return []byte{}, nil
+	} else {
+		if uctx.insertIntoBuf != nil {
+			b = append(uctx.insertIntoBuf, b...)
+			uctx.insertIntoBuf = nil
+		} else {
+			b = append([]byte{','}, b...)
+		}
+	}
+
+	return b, nil
 }
 
 func dhCreateTableValuesStringEnd(usrCtx any, deferred, token []byte) ([]byte, error) {
@@ -189,7 +232,19 @@ func dhCreateTableValuesStringEnd(usrCtx any, deferred, token []byte) ([]byte, e
 		return []byte{}, err
 	}
 
-	return rowDataGen(uctx), nil
+	b := rowDataGen(uctx)
+	if b == nil {
+		return []byte{}, nil
+	} else {
+		if uctx.insertIntoBuf != nil {
+			b = append(uctx.insertIntoBuf, b...)
+			uctx.insertIntoBuf = nil
+		} else {
+			b = append([]byte{','}, b...)
+		}
+	}
+
+	return b, nil
 }
 
 func rowDataGen(uctx *userCtx) []byte {
@@ -197,6 +252,9 @@ func rowDataGen(uctx *userCtx) []byte {
 	var out string
 
 	row := uctx.filter.ValuePop()
+	if row.Values == nil {
+		return nil
+	}
 
 	for i, v := range row.Values {
 

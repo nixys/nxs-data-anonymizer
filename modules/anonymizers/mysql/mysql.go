@@ -38,11 +38,12 @@ type SecurityOpts struct {
 }
 
 type userCtx struct {
-	filter     *relfilter.Filter
-	columnName string
-	security   securityCtx
-	tables     map[string]map[string]columnType
-	optKinds   []optKind
+	filter        *relfilter.Filter
+	columnName    string
+	security      securityCtx
+	tables        map[string]map[string]columnType
+	optKinds      []optKind
+	insertIntoBuf []byte
 }
 
 type securityCtx struct {
@@ -449,7 +450,7 @@ func (m *MySQL) Run(ctx context.Context, w io.Writer) error {
 									R: []byte{' ', '\n'},
 								},
 							},
-							DataHandler: dhSecurityNil,
+							DataHandler: dhSecurityInsertIntoValues,
 						},
 					},
 				},
@@ -460,7 +461,7 @@ func (m *MySQL) Run(ctx context.Context, w io.Writer) error {
 							Switch: fsm.Switch{
 								Trigger: []byte("("),
 							},
-							DataHandler: fsm.DataHandlerGenericSkipToken,
+							DataHandler: dhSecurityInsertIntoValueSearch,
 						},
 					},
 				},
@@ -526,14 +527,14 @@ func (m *MySQL) Run(ctx context.Context, w io.Writer) error {
 							Switch: fsm.Switch{
 								Trigger: []byte(","),
 							},
-							DataHandler: dhSecurityNil,
+							DataHandler: fsm.DataHandlerGenericVoid,
 						},
 						{
 							Name: stateSomeIntermediateState,
 							Switch: fsm.Switch{
 								Trigger: []byte(";"),
 							},
-							DataHandler: dhSecurityNil,
+							DataHandler: dhSecurityValuesEnd,
 						},
 					},
 				},
