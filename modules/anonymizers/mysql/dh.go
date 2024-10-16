@@ -13,6 +13,7 @@ func dhSecurityInsertInto(usrCtx any, deferred, token []byte) ([]byte, error) {
 	uctx := usrCtx.(*userCtx)
 
 	uctx.security.tmpBuf = token
+	uctx.insertIntoBuf = nil
 
 	return deferred, nil
 }
