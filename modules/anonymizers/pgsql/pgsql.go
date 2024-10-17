@@ -37,10 +37,11 @@ type SecurityOpts struct {
 }
 
 type userCtx struct {
-	filter   *relfilter.Filter
-	tn       *string
-	security securityCtx
-	tables   map[string]map[string]string
+	filter        *relfilter.Filter
+	tn            *string
+	security      securityCtx
+	tables        map[string]map[string]string
+	insertIntoBuf []byte
 }
 
 type securityCtx struct {
@@ -201,7 +202,7 @@ func (p *PgSQL) Run(ctx context.Context, w io.Writer) error {
 							Switch: fsm.Switch{
 								Trigger: []byte(";\n"),
 							},
-							DataHandler: dhSecurityNil,
+							DataHandler: dhTableCopyTail,
 						},
 					},
 				},
@@ -217,7 +218,7 @@ func (p *PgSQL) Run(ctx context.Context, w io.Writer) error {
 								},
 								Escape: false,
 							},
-							DataHandler: dhSecurityNil,
+							DataHandler: dhCopyValuesEnd,
 						},
 						{
 							Name: stateTableValues,
