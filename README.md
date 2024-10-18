@@ -302,7 +302,6 @@ To anonymize a database fields you may use a Go template with the [Sprig templat
 Additional filter functions:
 - `null`: set a field value to `NULL`
 - `isNull`: compare a field value with `NULL`
-- `drop`: drop whole row. If table has filters for several columns and at least one of them returns drop value, whole row will be skipped during the anonymization process
 
 You may also use the following data in a templates:
 - Current table name. Statement: `{{ .TableName }}`
@@ -356,9 +355,9 @@ _Values to masquerade a columns in accordance with the types see below._
 | `numeric`     | `0.0` |
 | `real`        | `0.0` |
 | `double`      | `0.0` |
-| `character`   | `randomized character data"` |
-| `bpchar`      | `randomized bpchar data` |
-| `text`        | `randomized text data` |
+| `character`   | `randomized string data` |
+| `bpchar`      | `randomized string data` |
+| `text`        | `randomized string data` |
 
 **MySQL:**
 
@@ -373,25 +372,25 @@ _Values to masquerade a columns in accordance with the types see below._
 | `int` |              `0` |
 | `integer` |          `0` |
 | `bigint` |           `0` |
-| `float` |            `0.0` |
-| `double` |           `0.0` |
-| `double precision` | `0.0` |
-| `decimal` |          `0.0` |
-| `dec` |              `0.0` |
-| `char` |       `randomized char` (String will be truncated to "COLUMN_SIZE" length.)| 
-| `varchar` |    `randomized varchar` (String will be truncated to "COLUMN_SIZE" length.) | 
-| `tinytext` |   `randomized tinytext` | 
-| `text` |       `randomized text` | 
-| `mediumtext` | `randomized mediumtext` | 
-| `longtext` |   `randomized longtext` | 
-| `enum` |       Last value from `enum` | 
-| `set` |        Last value from `set` | 
-| `date` |       `2024-01-01` | 
-| `datetime` |   `2024-01-01 00:00:00` | 
-| `timestamp` |  `2024-01-01 00:00:00` | 
-| `time` |       `00:00:00` | 
-| `year` |       `2024` | 
-| `json` |       `{"randomized": "json_data"}` |
+| `float` |            `0` |
+| `double` |           `0` |
+| `double precision` | `0` |
+| `decimal` |          `0` |
+| `dec` |              `0` |
+| `char` |       `randomized string data` | 
+| `varchar` |    `randomized string data` | 
+| `tinytext` |   `randomized string data` | 
+| `text` |       `randomized string data` | 
+| `mediumtext` | `randomized string data` | 
+| `longtext` |   `randomized string data` | 
+| `enum` |       `randomized string data` | 
+| `set` |        `randomized string data` | 
+| `date` |       `randomized string data` | 
+| `datetime` |   `randomized string data` | 
+| `timestamp` |  `randomized string data` | 
+| `time` |       `randomized string data` | 
+| `year` |       `randomized string data` | 
+| `json` |       `randomized string data` |
 | `binary` |     `cmFuZG9taXplZCBiaW5hcnkgZGF0YQo=` |
 | `varbinary` |  `cmFuZG9taXplZCBiaW5hcnkgZGF0YQo=` |
 | `tinyblob` |   `cmFuZG9taXplZCBiaW5hcnkgZGF0YQo=` |
@@ -422,7 +421,7 @@ _Values to masquerade a columns in accordance with the types see below._
 
 #### Example
 
-Imagine you have a simple table `users` in your production PgSQL like this:
+Imagine you have a simple database with two tables `users` and `posts` in your production PgSQL like this:
 
 | id | username | password | api_key |
 | :---: | :---: | :---: | :---: |
@@ -430,20 +429,63 @@ Imagine you have a simple table `users` in your production PgSQL like this:
 | 2 | `alice` | `tuhjLkgwwetiwf8` | `2od4vfsx2irj98hgjaoi6n7wjr02dg79cvqnmet4kyuhol877z` |
 | 3 | `bob`   | `AjRzvRp3DWo6VbA` | `owp7hob5s3o083d5hmursxgcv9wc4foyl20cbxbrr73egj6jkx` |
 
-You need to get a dump with fake values:
-- For `admin`: preset fixed value for a password and API key to avoid the need to change an app settings in your dev/test/stage or local environment after downloading the dump
-- For others: usernames in format `user_N` (where `N` it is a user ID) and unique random  passwords and API keys
+| id | poster_id | title | content |
+| :---: | :---: | :---: | :---: |
+| 1 | 1 | `example_post_1` | `epezyj0cj5rqrdtxklnzxr3f333uibtz6avek7926141t1c918` |
+| 2 | 2 | `example_post_2` | `2od4vfsx2irj98hgjaoi6n7wjr02dg79cvqnmet4kyuhol877z` |
+| 3 | 3 | `example_post_3` | `owp7hob5s3o083d5hmursxgcv9wc4foyl20cbxbrr73egj6jkx` |
+| 4 | 1 | `example_post_4` | `epezyj0cj5rqrdtxklnzxr3f333uibtz6avek7926141t1c918` |
+| 5 | 2 | `example_post_5` | `2od4vfsx2irj98hgjaoi6n7wjr02dg79cvqnmet4kyuhol877z` |
+| 6 | 3 | `example_post_6` | `owp7hob5s3o083d5hmursxgcv9wc4foyl20cbxbrr73egj6jkx` |
 
+You need to get a dump with fake values:
+- For `admin`: preset fixed value for a password and API key to avoid the need to change an app settings in your dev/test/stage or local environment after downloading the dump.
+- For others: usernames in format `user_N` (where `N` it is a user ID) and unique random  passwords and API keys.
+- Need to preserve data mapping between `users` and `posts` tables in `id` and `poster_id` columns
+- Need to randomize contents of `content` column.
 In accordance with these conditions, the nxs-data-anonymizer config may look like this:
 
 ```yaml
 variables:
+#Global variables.
   adminPassword:
     type: template
     value: "preset_admin_password"
   adminAPIKey:
     value: "preset_admin_api_key"
 
+#Block defining rules of behavior with fields and tables for which filters are not specified.
+security:
+# Specifies the required actions for tables and columns that are not specified in the configuration.
+  policy:
+    tables: skip
+    columns: randomize
+# Excludes policy actions for the specified tables and columns.
+  exceptions:
+    tables: 
+    - public.posts
+    columns:
+    - title
+# Overrides the default policy actions for the columns specified in this block. The value is generated once and substituted into all instances of the field.
+  defaults:
+    columns:
+      content:
+        value: "{{- randAlphaNum 20 -}}"
+
+#Here you define the rules that allow you to preserve the mapping of values ​​between tables.
+link:
+- rule:
+#Value generation rule.
+    value: "{{ randInt 1 15	}}"
+    unique: true
+  with:
+#Tables and columns to which the rule is applied.
+    public.users:
+    - id
+    public.posts:
+    - poster_id
+
+#Block describing replacement rules for fields.
 filters:
   public.users:
     columns:
@@ -496,19 +538,28 @@ pg_dump ... | ./nxs-data-anonymizer -c filters.conf | psql -h localhost -U user 
 As a result:
 | id | username | password | api_key |
 | :---: | :---: | :---: | :---: |
-| 1 | `admin` | `preset_admin_password` | `preset_admin_api_key` |
-| 2 | `user_2` | `Pp4HY` | `dhx4mccxyd8ux5uf1khpbqsws8qqeqs4efex1vhfltzhtjcwcu` |
-| 3 | `user_3`   | `vu5TW` | `lgkkq3csskuyew8fr52vfjjenjzudokmiidg3cohl2bertc93x` |
+| 5 | `admin` | `preset_admin_password` | `preset_admin_api_key` |
+| 4 | `user_2` | `Pp4HY` | `dhx4mccxyd8ux5uf1khpbqsws8qqeqs4efex1vhfltzhtjcwcu` |
+| 7 | `user_3`   | `vu5TW` | `lgkkq3csskuyew8fr52vfjjenjzudokmiidg3cohl2bertc93x` |
 
-It's easy.
+| id | poster_id | title | content |
+| :---: | :---: | :---: | :---: |
+| 1 | 5 | `example_post_1` | `EDlT6bGXJ2LOS7CE2E4b` |
+| 2 | 4 | `example_post_2` | `EDlT6bGXJ2LOS7CE2E4b` |
+| 3 | 7 | `example_post_3` | `EDlT6bGXJ2LOS7CE2E4b` |
+| 4 | 5 | `example_post_4` | `EDlT6bGXJ2LOS7CE2E4b` |
+| 5 | 4 | `example_post_5` | `EDlT6bGXJ2LOS7CE2E4b` |
+| 6 | 7 | `example_post_6` | `EDlT6bGXJ2LOS7CE2E4b` |
+
+It's easy. You can find more examples in doc/examples.
 
 ## Roadmap
 
 Following features are already in backlog for our development team and will be released soon:
-- [x] Global variables with the templated values you may use through the filters for all tables and columns
-- [x] Ability to delete tables and rows from faked dump 
-- [ ] Ability to output into log a custom messages. It’s quite useful it order to obtain some generated data like admin passwords, etc
-- [ ] Support of a big variety of databases
+- Global variables with the templated values you may use through the filters for all tables and columns
+- Ability to delete tables and rows from faked dump 
+- Ability to output into log a custom messages. It’s quite useful it order to obtain some generated data like admin passwords, etc
+- Support of a big variety of databases
 
 ## Feedback
 
