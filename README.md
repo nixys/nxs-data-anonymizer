@@ -356,9 +356,9 @@ _Values to masquerade a columns in accordance with the types see below._
 | `numeric`     | `0.0` |
 | `real`        | `0.0` |
 | `double`      | `0.0` |
-| `character`   | `randomized string data` |
-| `bpchar`      | `randomized string data` |
-| `text`        | `randomized string data` |
+| `character`   | `randomized character data"` |
+| `bpchar`      | `randomized bpchar data` |
+| `text`        | `randomized text data` |
 
 **MySQL:**
 
@@ -373,25 +373,25 @@ _Values to masquerade a columns in accordance with the types see below._
 | `int` |              `0` |
 | `integer` |          `0` |
 | `bigint` |           `0` |
-| `float` |            `0` |
-| `double` |           `0` |
-| `double precision` | `0` |
-| `decimal` |          `0` |
-| `dec` |              `0` |
-| `char` |       `randomized string data` | 
-| `varchar` |    `randomized string data` | 
-| `tinytext` |   `randomized string data` | 
-| `text` |       `randomized string data` | 
-| `mediumtext` | `randomized string data` | 
-| `longtext` |   `randomized string data` | 
-| `enum` |       `randomized string data` | 
-| `set` |        `randomized string data` | 
-| `date` |       `randomized string data` | 
-| `datetime` |   `randomized string data` | 
-| `timestamp` |  `randomized string data` | 
-| `time` |       `randomized string data` | 
-| `year` |       `randomized string data` | 
-| `json` |       `randomized string data` |
+| `float` |            `0.0` |
+| `double` |           `0.0` |
+| `double precision` | `0.0` |
+| `decimal` |          `0.0` |
+| `dec` |              `0.0` |
+| `char` |       `randomized char` (String will be truncated to "COLUMN_SIZE" length.)| 
+| `varchar` |    `randomized varchar` (String will be truncated to "COLUMN_SIZE" length.) | 
+| `tinytext` |   `randomized tinytext` | 
+| `text` |       `randomized text` | 
+| `mediumtext` | `randomized mediumtext` | 
+| `longtext` |   `randomized longtext` | 
+| `enum` |       Last value from `enum` | 
+| `set` |        Last value from `set` | 
+| `date` |       `2024-01-01` | 
+| `datetime` |   `2024-01-01 00:00:00` | 
+| `timestamp` |  `2024-01-01 00:00:00` | 
+| `time` |       `00:00:00` | 
+| `year` |       `2024` | 
+| `json` |       `{"randomized": "json_data"}` |
 | `binary` |     `cmFuZG9taXplZCBiaW5hcnkgZGF0YQo=` |
 | `varbinary` |  `cmFuZG9taXplZCBiaW5hcnkgZGF0YQo=` |
 | `tinyblob` |   `cmFuZG9taXplZCBiaW5hcnkgZGF0YQo=` |
@@ -557,10 +557,10 @@ It's easy. You can find more examples in doc/examples.
 ## Roadmap
 
 Following features are already in backlog for our development team and will be released soon:
-- Global variables with the templated values you may use through the filters for all tables and columns
-- Ability to delete tables and rows from faked dump 
-- Ability to output into log a custom messages. It’s quite useful it order to obtain some generated data like admin passwords, etc
-- Support of a big variety of databases
+- [x] Global variables with the templated values you may use through the filters for all tables and columns
+- [x] Ability to delete tables and rows from faked dump 
+- [ ] Ability to output into log a custom messages. It’s quite useful it order to obtain some generated data like admin passwords, etc
+- [ ] Support of a big variety of databases
 
 ## Feedback
 
