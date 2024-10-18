@@ -14,15 +14,20 @@ func dhSecurityCopy(usrCtx any, deferred, token []byte) ([]byte, error) {
 	uctx := usrCtx.(*userCtx)
 
 	uctx.security.tmpBuf = append(uctx.security.tmpBuf, token...)
+	uctx.insertIntoBuf = nil
 
 	return deferred, nil
 }
 
-func dhSecurityNil(usrCtx any, deferred, token []byte) ([]byte, error) {
+func dhCopyValuesEnd(usrCtx any, deferred, token []byte) ([]byte, error) {
 
 	uctx := usrCtx.(*userCtx)
 
 	if uctx.security.isSkip == true {
+		return []byte{}, nil
+	}
+
+	if uctx.insertIntoBuf != nil {
 		return []byte{}, nil
 	}
 
@@ -88,12 +93,12 @@ func dhTableName(usrCtx any, deferred, token []byte) ([]byte, error) {
 
 	uctx.filter.TableCreate(tname)
 
-	d := append(uctx.security.tmpBuf, append(deferred, token...)...)
+	uctx.insertIntoBuf = append(uctx.security.tmpBuf, append(deferred, token...)...)
 
 	uctx.security.isSkip = false
 	uctx.security.tmpBuf = []byte{}
 
-	return d, nil
+	return []byte{}, nil
 }
 
 func dhFieldName(usrCtx any, deferred, token []byte) ([]byte, error) {
@@ -111,7 +116,22 @@ func dhFieldName(usrCtx any, deferred, token []byte) ([]byte, error) {
 		uctx.tables[uctx.filter.TableNameGet()][string(fname)],
 	)
 
-	return append(deferred, token...), nil
+	uctx.insertIntoBuf = append(uctx.insertIntoBuf, append(deferred, token...)...)
+
+	return []byte{}, nil
+}
+
+func dhTableCopyTail(usrCtx any, deferred, token []byte) ([]byte, error) {
+
+	uctx := usrCtx.(*userCtx)
+
+	if uctx.security.isSkip == true {
+		return []byte{}, nil
+	}
+
+	uctx.insertIntoBuf = append(uctx.insertIntoBuf, append(deferred, token...)...)
+
+	return []byte{}, nil
 }
 
 func dhValue(usrCtx any, deferred, token []byte) ([]byte, error) {
@@ -150,7 +170,17 @@ func dhValueEnd(usrCtx any, deferred, token []byte) ([]byte, error) {
 		return []byte{}, err
 	}
 
-	return rowDataGen(uctx.filter), nil
+	b := rowDataGen(uctx.filter)
+	if b == nil {
+		return []byte{}, nil
+	} else {
+		if uctx.insertIntoBuf != nil {
+			b = append(uctx.insertIntoBuf, b...)
+			uctx.insertIntoBuf = nil
+		}
+	}
+
+	return b, nil
 }
 
 func rowDataGen(filter *relfilter.Filter) []byte {
@@ -158,6 +188,9 @@ func rowDataGen(filter *relfilter.Filter) []byte {
 	var out string
 
 	row := filter.ValuePop()
+	if row.Values == nil {
+		return nil
+	}
 
 	for i, v := range row.Values {
 
