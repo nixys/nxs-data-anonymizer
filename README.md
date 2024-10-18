@@ -302,6 +302,7 @@ To anonymize a database fields you may use a Go template with the [Sprig templat
 Additional filter functions:
 - `null`: set a field value to `NULL`
 - `isNull`: compare a field value with `NULL`
+- `drop`: drop whole row. If table has filters for several columns and at least one of them returns drop value, whole row will be skipped during the anonymization process
 
 You may also use the following data in a templates:
 - Current table name. Statement: `{{ .TableName }}`
