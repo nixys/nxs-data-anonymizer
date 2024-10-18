@@ -422,7 +422,7 @@ _Values to masquerade a columns in accordance with the types see below._
 
 #### Example
 
-Imagine you have a simple table `users` in your production PgSQL like this:
+Imagine you have a simple database with two tables `users` and `posts` in your production PgSQL like this:
 
 | id | username | password | api_key |
 | :---: | :---: | :---: | :---: |
@@ -430,20 +430,63 @@ Imagine you have a simple table `users` in your production PgSQL like this:
 | 2 | `alice` | `tuhjLkgwwetiwf8` | `2od4vfsx2irj98hgjaoi6n7wjr02dg79cvqnmet4kyuhol877z` |
 | 3 | `bob`   | `AjRzvRp3DWo6VbA` | `owp7hob5s3o083d5hmursxgcv9wc4foyl20cbxbrr73egj6jkx` |
 
-You need to get a dump with fake values:
-- For `admin`: preset fixed value for a password and API key to avoid the need to change an app settings in your dev/test/stage or local environment after downloading the dump
-- For others: usernames in format `user_N` (where `N` it is a user ID) and unique random  passwords and API keys
+| id | poster_id | title | content |
+| :---: | :---: | :---: | :---: |
+| 1 | 1 | `example_post_1` | `epezyj0cj5rqrdtxklnzxr3f333uibtz6avek7926141t1c918` |
+| 2 | 2 | `example_post_2` | `2od4vfsx2irj98hgjaoi6n7wjr02dg79cvqnmet4kyuhol877z` |
+| 3 | 3 | `example_post_3` | `owp7hob5s3o083d5hmursxgcv9wc4foyl20cbxbrr73egj6jkx` |
+| 4 | 1 | `example_post_4` | `epezyj0cj5rqrdtxklnzxr3f333uibtz6avek7926141t1c918` |
+| 5 | 2 | `example_post_5` | `2od4vfsx2irj98hgjaoi6n7wjr02dg79cvqnmet4kyuhol877z` |
+| 6 | 3 | `example_post_6` | `owp7hob5s3o083d5hmursxgcv9wc4foyl20cbxbrr73egj6jkx` |
 
+You need to get a dump with fake values:
+- For `admin`: preset fixed value for a password and API key to avoid the need to change an app settings in your dev/test/stage or local environment after downloading the dump.
+- For others: usernames in format `user_N` (where `N` it is a user ID) and unique random  passwords and API keys.
+- Need to preserve data mapping between `users` and `posts` tables in `id` and `poster_id` columns
+- Need to randomize contents of `content` column.
 In accordance with these conditions, the nxs-data-anonymizer config may look like this:
 
 ```yaml
 variables:
+#Global variables.
   adminPassword:
     type: template
     value: "preset_admin_password"
   adminAPIKey:
     value: "preset_admin_api_key"
 
+#Block defining rules of behavior with fields and tables for which filters are not specified.
+security:
+# Specifies the required actions for tables and columns that are not specified in the configuration.
+  policy:
+    tables: skip
+    columns: randomize
+# Excludes policy actions for the specified tables and columns.
+  exceptions:
+    tables: 
+    - public.posts
+    columns:
+    - title
+# Overrides the default policy actions for the columns specified in this block. The value is generated once and substituted into all instances of the field.
+  defaults:
+    columns:
+      content:
+        value: "{{- randAlphaNum 20 -}}"
+
+#Here you define the rules that allow you to preserve the mapping of values ​​between tables.
+link:
+- rule:
+#Value generation rule.
+    value: "{{ randInt 1 15	}}"
+    unique: true
+  with:
+#Tables and columns to which the rule is applied.
+    public.users:
+    - id
+    public.posts:
+    - poster_id
+
+#Block describing replacement rules for fields.
 filters:
   public.users:
     columns:
@@ -496,11 +539,20 @@ pg_dump ... | ./nxs-data-anonymizer -c filters.conf | psql -h localhost -U user 
 As a result:
 | id | username | password | api_key |
 | :---: | :---: | :---: | :---: |
-| 1 | `admin` | `preset_admin_password` | `preset_admin_api_key` |
-| 2 | `user_2` | `Pp4HY` | `dhx4mccxyd8ux5uf1khpbqsws8qqeqs4efex1vhfltzhtjcwcu` |
-| 3 | `user_3`   | `vu5TW` | `lgkkq3csskuyew8fr52vfjjenjzudokmiidg3cohl2bertc93x` |
+| 5 | `admin` | `preset_admin_password` | `preset_admin_api_key` |
+| 4 | `user_2` | `Pp4HY` | `dhx4mccxyd8ux5uf1khpbqsws8qqeqs4efex1vhfltzhtjcwcu` |
+| 7 | `user_3`   | `vu5TW` | `lgkkq3csskuyew8fr52vfjjenjzudokmiidg3cohl2bertc93x` |
 
-It's easy.
+| id | poster_id | title | content |
+| :---: | :---: | :---: | :---: |
+| 1 | 5 | `example_post_1` | `EDlT6bGXJ2LOS7CE2E4b` |
+| 2 | 4 | `example_post_2` | `EDlT6bGXJ2LOS7CE2E4b` |
+| 3 | 7 | `example_post_3` | `EDlT6bGXJ2LOS7CE2E4b` |
+| 4 | 5 | `example_post_4` | `EDlT6bGXJ2LOS7CE2E4b` |
+| 5 | 4 | `example_post_5` | `EDlT6bGXJ2LOS7CE2E4b` |
+| 6 | 7 | `example_post_6` | `EDlT6bGXJ2LOS7CE2E4b` |
+
+It's easy. You can find more examples in doc/examples.
 
 ## Roadmap
 
