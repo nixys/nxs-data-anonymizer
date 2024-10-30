@@ -21,7 +21,7 @@ jobs:
     - name: Building ${{ matrix.TARGET }}
       run: echo "${{ matrix.TARGET }}"
 
-    - uses: actions/checkout@master
+    - uses: actions/checkout@v4
 
     - uses: actions/setup-go@v3
       name: Set up Go
@@ -46,7 +46,7 @@ jobs:
           ./LICENSE
         outPath: nxs-data-anonymizer-${{ matrix.TARGET }}.tar.gz
 
-    - uses: actions/upload-artifact@v3
+    - uses: actions/upload-artifact@v4
       with:
         name: nxs-data-anonymizer-${{ matrix.TARGET }}.tar.gz
         path: nxs-data-anonymizer-${{ matrix.TARGET }}.tar.gz
