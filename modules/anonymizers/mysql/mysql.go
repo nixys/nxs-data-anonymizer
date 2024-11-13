@@ -324,7 +324,7 @@ func (m *MySQL) Run(ctx context.Context, w io.Writer) error {
 							Switch: fsm.Switch{
 								Trigger: []byte(","),
 								Delimiters: fsm.Delimiters{
-									R: []byte{'\n'},
+									R: []byte{'\n', '\r'},
 								},
 							},
 							DataHandler: nil,
@@ -359,7 +359,7 @@ func (m *MySQL) Run(ctx context.Context, w io.Writer) error {
 							Switch: fsm.Switch{
 								Trigger: []byte(","),
 								Delimiters: fsm.Delimiters{
-									R: []byte{'\n'},
+									R: []byte{'\n', '\r'},
 								},
 							},
 							DataHandler: dhCreateTableColumnAdd,
@@ -383,7 +383,7 @@ func (m *MySQL) Run(ctx context.Context, w io.Writer) error {
 							Switch: fsm.Switch{
 								Trigger: []byte(";"),
 								Delimiters: fsm.Delimiters{
-									R: []byte{'\n'},
+									R: []byte{'\n', '\r'},
 								},
 							},
 							DataHandler: nil,
@@ -447,7 +447,7 @@ func (m *MySQL) Run(ctx context.Context, w io.Writer) error {
 								Trigger: []byte("VALUES"),
 								Delimiters: fsm.Delimiters{
 									L: []byte{' ', '\n'},
-									R: []byte{' ', '\n'},
+									R: []byte{' ', '\n', '\r'},
 								},
 							},
 							DataHandler: dhSecurityInsertIntoValues,
