@@ -14,7 +14,7 @@ func TestPgSQL(t *testing.T) {
 
 	var r, e bytes.Buffer
 
-	fin, err := os.Open("pgsql_test.in.sql")
+	fin, err := os.Open(".testdata/pgsql_test.in.sql")
 	if err != nil {
 		t.Fatal("open input SQL:", err)
 	}
@@ -63,7 +63,7 @@ func TestPgSQL(t *testing.T) {
 		t.Fatal("run PgSQL:", err)
 	}
 
-	fout, err := os.Open("pgsql_test.out.sql")
+	fout, err := os.Open(".testdata/pgsql_test.out.sql")
 	if err != nil {
 		t.Fatal("open output SQL:", err)
 	}
@@ -72,7 +72,7 @@ func TestPgSQL(t *testing.T) {
 		t.Fatal("read output SQL:", err)
 	}
 
-	// os.WriteFile("pgsql_test.out.sql", r.Bytes(), 0644)
+	// os.WriteFile(".testdata/pgsql_test.out.sql", r.Bytes(), 0644)
 
 	if r.String() != e.String() {
 		t.Fatal("incorrect anonymization result")
@@ -85,7 +85,7 @@ func TestPgSQLDos(t *testing.T) {
 
 	var r, e bytes.Buffer
 
-	fin, err := os.Open("pgsql_test.dos.in.sql")
+	fin, err := os.Open(".testdata/pgsql_test.dos.in.sql")
 	if err != nil {
 		t.Fatal("open input SQL:", err)
 	}
@@ -134,7 +134,7 @@ func TestPgSQLDos(t *testing.T) {
 		t.Fatal("run PgSQL:", err)
 	}
 
-	fout, err := os.Open("pgsql_test.dos.out.sql")
+	fout, err := os.Open(".testdata/pgsql_test.dos.out.sql")
 	if err != nil {
 		t.Fatal("open output SQL:", err)
 	}
@@ -143,7 +143,7 @@ func TestPgSQLDos(t *testing.T) {
 		t.Fatal("read output SQL:", err)
 	}
 
-	// os.WriteFile("pgsql_test.dos.out.sql", r.Bytes(), 0644)
+	// os.WriteFile(".testdata/pgsql_test.dos.out.sql", r.Bytes(), 0644)
 
 	if r.String() != e.String() {
 		t.Fatal("incorrect anonymization result")
