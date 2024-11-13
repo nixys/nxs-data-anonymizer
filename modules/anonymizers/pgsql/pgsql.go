@@ -143,7 +143,7 @@ func (p *PgSQL) Run(ctx context.Context, w io.Writer) error {
 							Switch: fsm.Switch{
 								Trigger: []byte("("),
 								Delimiters: fsm.Delimiters{
-									R: []byte{'\n'},
+									R: []byte{'\n', '\r'},
 								},
 							},
 							DataHandler: dhCreateTableName,
@@ -158,7 +158,7 @@ func (p *PgSQL) Run(ctx context.Context, w io.Writer) error {
 							Switch: fsm.Switch{
 								Trigger: []byte(");"),
 								Delimiters: fsm.Delimiters{
-									R: []byte{'\n'},
+									R: []byte{'\n', '\r'},
 								},
 							},
 							DataHandler: dhCreateTableDesc,
@@ -200,6 +200,13 @@ func (p *PgSQL) Run(ctx context.Context, w io.Writer) error {
 						{
 							Name: stateTableValues,
 							Switch: fsm.Switch{
+								Trigger: []byte(";\r\n"),
+							},
+							DataHandler: dhTableCopyTail,
+						},
+						{
+							Name: stateTableValues,
+							Switch: fsm.Switch{
 								Trigger: []byte(";\n"),
 							},
 							DataHandler: dhTableCopyTail,
@@ -214,7 +221,7 @@ func (p *PgSQL) Run(ctx context.Context, w io.Writer) error {
 								Trigger: []byte("\\."),
 								Delimiters: fsm.Delimiters{
 									L: []byte{'\n'},
-									R: []byte{'\n'},
+									R: []byte{'\n', '\r'},
 								},
 								Escape: false,
 							},
