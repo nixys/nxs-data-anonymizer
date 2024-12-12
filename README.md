@@ -2,6 +2,10 @@
 
 # nxs-data-anonymizer
 
+[![Telegram News][tg-news-badge]][tg-news-url]
+[![Telegram Chat][tg-chat-badge]][tg-chat-url]
+[![AI Code Assist][aica-badge]][aica-url]
+
 ## Introduction
 
 nxs-data-anonymizer is a tool for anonymizing **PostgreSQL** and **MySQL/MariaDB/Percona** databases' dump.
@@ -575,3 +579,10 @@ For news and discussions subscribe the channels:
 ## License
 
 nxs-data-anonymizer is released under the [Apache License 2.0](LICENSE).
+
+[tg-news-badge]: https://img.shields.io/endpoint?url=https%3A%2F%2Ftg.sumanjay.workers.dev%2Fnxs_data_anonymizer
+[tg-chat-badge]: https://img.shields.io/endpoint?url=https%3A%2F%2Ftg.sumanjay.workers.dev%2Fnxs_data_anonymizer_chat
+[tg-news-url]: https://t.me/nxs_data_anonymizer
+[tg-chat-url]: https://t.me/nxs_data_anonymizer_chat
+[aica-badge]: https://img.shields.io/badge/AI-Code%20Assist-EB9FDA
+[aica-url]: https://app.commanddash.io/agent?github=https://github.com/nixys/nxs-data-anonymizer
