@@ -84,6 +84,20 @@ CREATE TABLE public.list_types3 (
 ALTER TABLE public.list_types3 OWNER TO postgres;
 
 --
+-- Name: list_types_not_null; Type: TABLE; Schema: public; Owner: postgres
+--
+CREATE TABLE public.list_types_not_null (
+                                   varchar_type character varying NOT NULL,
+                                   text_type text NOT NULL,
+                                   varchar_type_n character varying,
+                                   text_type_n text,
+                                   id bigint NOT NULL
+);
+
+
+ALTER TABLE public.list_types_not_null OWNER TO postgres;
+
+--
 -- Name: list_types_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
@@ -154,6 +168,18 @@ COPY public.list_types3 (integer_type, numeric_type, double_precision_type, varc
 8767542	\N	5.08081291	\N	Fames ac turpis egestas maecenas. Volutpat lacus laoreet non curabitur gravida arcu ac tortor. Sit amet commodo nulla facilisi nullam vehicula. Ipsum dolor sit amet consectetur adipiscing elit pellentesque. Maecenas ultricies mi eget mauris pharetra. Sed faucibus turpis in eu mi bibendum. Massa ultricies mi quis hendrerit dolor magna. Non diam phasellus vestibulum lorem sed. Vestibulum mattis ullamcorper velit sed ullamcorper morbi tincidunt ornare massa. Massa ultricies mi quis hendrerit dolor magna eget est lorem. Quam elementum pulvinar etiam non quam lacus suspendisse faucibus.	2058-03-29	\N	f	<root>\n  <invented>concerned</invented>\n  <feet>-1671936329.7007055</feet>\n  <win>slept</win>\n  <until>how</until>\n  <lion>-1838021068</lion>\n</root>	{"basis": "mine", "company": {"tired": false, "prevent": false, "suppose": 735075799}, "worried": {"iron": 378563223.91183805, "nest": false, "raise": {"date": false, "engineer": true, "television": 136840736.65782642}}}	7
 \.
 
+
+--
+-- Data for Name: list_types_not_null; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+COPY public.list_types_not_null (varchar_type, text_type, varchar_type_n, text_type_n, id) FROM stdin;
+Non empty varchar	Non empty text	Non empty varchar	Non empty text	0
+	Non empty text	Non empty varchar	Non empty text	1
+Non empty varchar		Non empty varchar	Non empty text	2
+Non empty varchar	Non empty text	\N	\N	3
+	Non empty text	\N	\N	4
+		\N	\N	5
+\.
 
 --
 -- Name: list_types_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres

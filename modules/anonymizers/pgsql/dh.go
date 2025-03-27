@@ -9,6 +9,10 @@ import (
 	"github.com/nixys/nxs-data-anonymizer/modules/filters/relfilter"
 )
 
+var (
+	empty = []byte("::EMPTY::")
+)
+
 func dhSecurityCopy(usrCtx any, deferred, token []byte) ([]byte, error) {
 
 	uctx := usrCtx.(*userCtx)
@@ -134,6 +138,18 @@ func dhTableCopyTail(usrCtx any, deferred, token []byte) ([]byte, error) {
 	return []byte{}, nil
 }
 
+func convertValue(v []byte) []byte {
+	if bytes.Compare(v, []byte("\\N")) == 0 {
+		return nil
+	}
+
+	if len(v) == 0 {
+		return empty
+	}
+
+	return v
+}
+
 func dhValue(usrCtx any, deferred, token []byte) ([]byte, error) {
 
 	uctx := usrCtx.(*userCtx)
@@ -142,11 +158,7 @@ func dhValue(usrCtx any, deferred, token []byte) ([]byte, error) {
 		return []byte{}, nil
 	}
 
-	if bytes.Compare(deferred, []byte("\\N")) == 0 {
-		uctx.filter.ValueAdd(nil)
-	} else {
-		uctx.filter.ValueAdd(deferred)
-	}
+	uctx.filter.ValueAdd(convertValue(deferred))
 
 	return []byte{}, nil
 }
@@ -159,11 +171,7 @@ func dhValueEnd(usrCtx any, deferred, token []byte) ([]byte, error) {
 		return []byte{}, nil
 	}
 
-	if bytes.Compare(deferred, []byte("\\N")) == 0 {
-		uctx.filter.ValueAdd(nil)
-	} else {
-		uctx.filter.ValueAdd(deferred)
-	}
+	uctx.filter.ValueAdd(convertValue(deferred))
 
 	// Apply filter for row
 	if err := uctx.filter.Apply(); err != nil {
@@ -200,6 +208,8 @@ func rowDataGen(filter *relfilter.Filter) []byte {
 
 		if v.V == nil {
 			out += "\\N"
+		} else if bytes.Compare(v.V, empty) == 0 {
+			out += ""
 		} else {
 			out += fmt.Sprintf("%s", v.V)
 		}
