@@ -4,7 +4,6 @@
 
 [![Telegram News][tg-news-badge]][tg-news-url]
 [![Telegram Chat][tg-chat-badge]][tg-chat-url]
-[![AI Code Assist][aica-badge]][aica-url]
 
 ## Introduction
 
