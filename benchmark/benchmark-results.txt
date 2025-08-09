@@ -1,0 +1,16 @@
+Date: Sam  9 aoû 2025 02:07:32 CEST
+
+
+=== BENCHMARK POSTGRESQL ===
+
+NXS-Native,PostgreSQL,.453295000
+NXS-Go-Faker,PostgreSQL,24.509406000
+
+=== BENCHMARK MYSQL ===
+
+NXS-Native,MySQL,.394213000
+NXS-Go-Faker,MySQL,24.684593000
+
+[0;34m=== RÉSUMÉ DES RÉSULTATS ===[0m
+
+Méthode,Base de données,Temps (secondes)

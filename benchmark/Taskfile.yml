@@ -1,0 +1,95 @@
+version: '3'
+
+vars:
+  POSTGRES_DB: testdb
+  POSTGRES_USER: postgres
+  POSTGRES_PASSWORD: postgres
+  MYSQL_DB: testdb
+  MYSQL_USER: root
+  MYSQL_PASSWORD: root
+
+tasks:
+  install:
+    desc: "Installer les dépendances"
+    cmds:
+    - echo "Création de l'environnement virtuel avec uv..."
+    - uv venv --python 3.12
+    - echo "Installation des dépendances Python..."
+    - uv pip install faker psycopg2-binary mysql-connector-python
+    - echo "Installation des dépendances Go..."
+    - go get github.com/brianvoe/gofakeit/v6
+    - go get github.com/lib/pq
+    - go get github.com/go-sql-driver/mysql
+    - chmod +x scripts/*.sh
+    - chmod +x scripts/*.py
+    - echo "✓ Installation terminée. Activez le venv avec source .venv/bin/activate"
+
+  docker-up:
+    desc: "Démarrer les conteneurs Docker"
+    cmds:
+    - docker-compose up -d
+    - chmod +x scripts/wait-for-db.sh
+    - ./scripts/wait-for-db.sh
+
+  docker-down:
+    desc: "Arrêter les conteneurs Docker et supprimer les volumes"
+    cmds:
+    - docker-compose down --volumes --remove-orphans
+
+  init-db:
+    desc: "Initialiser les bases de données"
+    deps: [ docker-up ]
+    cmds:
+    - echo "Initialisation PostgreSQL..."
+    - docker exec -i benchmark-postgres psql -U postgres -d testdb < sql/init.sql
+    - echo "Initialisation MySQL..."
+    - docker exec -i benchmark-mysql mysql -uroot -proot testdb < sql/init.sql
+
+  populate:
+    desc: "Populer les bases avec N utilisateurs"
+    cmds:
+    - python3 scripts/populate_db.py {{.CLI_ARGS}}
+
+  build-nxs:
+    desc: "Compiler nxs-data-anonymizer"
+    cmds:
+    - echo "Compilation de nxs-data-anonymizer..."
+    - cd .. && go build -o benchmark/nxs-data-anonymizer .
+
+  verify:
+    desc: "Vérifier l'anonymisation des données"
+    deps: [build-nxs]
+    cmds:
+    - chmod +x scripts/verify_anonymization.sh
+    - chmod +x scripts/compare_anonymization.py
+    - ./scripts/verify_anonymization.sh
+    - echo ""
+    - python3 scripts/compare_anonymization.py
+
+  benchmark:
+    desc: "Lancer le benchmark complet"
+    deps: [build-nxs]
+    cmds:
+    - ./scripts/benchmark.sh
+
+  run:
+    desc: "Workflow complet - docker up, init, populate et benchmark"
+    cmds:
+    - task: docker-up
+    - task: init-db
+    - task: populate -- 1000
+    - task: benchmark
+    - echo "=== RÉSULTATS FINAUX ==="
+    - cat benchmark-results.txt
+
+  clean:
+    desc: "Nettoyer complètement l'environnement"
+    cmds:
+    - task: docker-down
+    - echo "🗑️  Nettoyage des fichiers temporaires..."
+    - rm -f benchmark-results.txt
+    - rm -f nxs-data-anonymizer
+    - rm -f scripts/faker-go
+    - rm -rf verification_results/
+    - rm -f *.sql
+    - echo "✅ Environnement nettoyé!"
