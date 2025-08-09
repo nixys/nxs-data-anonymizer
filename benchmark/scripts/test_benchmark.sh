@@ -65,7 +65,7 @@ run_test() {
             $binary -t pgsql -c $config > /dev/null 2>&1
     else
         mysqldump -h "$MYSQL_HOST" -P "$MYSQL_PORT" -u"$MYSQL_USER" "$MYSQL_DB" \
-            --tables users 2>/dev/null | \
+            --tables users --extended-insert=false 2>/dev/null | \
             head -500 | \
             $binary -t mysql -c $config > /dev/null 2>&1
     fi

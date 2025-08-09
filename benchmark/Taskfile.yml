@@ -88,14 +88,14 @@ tasks:
     deps: [build-faker]
     cmds:
       - echo "🧪 Test MySQL + Faker..."
-      - mysqldump -h 127.0.0.1 -uroot -proot testdb users --no-create-info 2>/dev/null | head -100 | ./nxs-data-anonymizer-faker -t mysql -c mysql-faker.conf | head -5
+      - mysqldump -h 127.0.0.1 -uroot -proot testdb users --extended-insert=false 2>/dev/null | head -100 | ./nxs-data-anonymizer-faker -t mysql -c mysql-faker.conf | grep INSERT | head -3
 
   test-mysql-native:
     desc: "Test MySQL avec fonctions natives"
     deps: [build-native]
     cmds:
       - echo "🧪 Test MySQL + Native..."
-      - mysqldump -h 127.0.0.1 -uroot -proot testdb users --no-create-info 2>/dev/null | head -100 | ./nxs-data-anonymizer -t mysql -c mysql-native.conf | head -5
+      - mysqldump -h 127.0.0.1 -uroot -proot testdb users --extended-insert=false 2>/dev/null | head -100 | ./nxs-data-anonymizer -t mysql -c mysql-native.conf | grep INSERT | head -3
 
   # ====================
   # BENCHMARK & VÉRIFICATION
@@ -163,7 +163,7 @@ tasks:
   # AIDE
   # ====================
   
-  default:
+  help:
     desc: "Afficher l'aide"
     cmds:
       - echo "📚 NXS-DATA-ANONYMIZER BENCHMARK"
@@ -183,3 +183,10 @@ tasks:
       - echo "Autres :"
       - echo "  task build-all    - Compiler les binaires"
       - echo "  task clean        - Nettoyer tout"
+      - echo ""
+      - echo "📖 Voir README.md pour la documentation complète"
+
+  default:
+    desc: "Commande par défaut"
+    cmds:
+      - task: help

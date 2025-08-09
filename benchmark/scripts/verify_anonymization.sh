@@ -59,27 +59,27 @@ test_config() {
     echo -e "${YELLOW}Test $db_type avec $method...${NC}"
     
     if [ "$db_type" = "postgres" ]; then
-        # Extraire 3 lignes de données
+        # Extraire lignes originales  
         pg_dump -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
             --data-only --table=users 2>/dev/null | \
             grep "^[0-9]" | head -3 > "${output_file}.orig"
         
-        # Anonymiser
+        # Anonymiser avec dump complet incluant COPY + données
         pg_dump -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
             --data-only --table=users 2>/dev/null | \
-            grep "^[0-9]" | head -3 | \
+            head -50 | \
             $binary -t pgsql -c $config 2>/dev/null | \
-            grep "^[0-9]" > "${output_file}.anon"
+            grep "^[0-9]" | head -3 > "${output_file}.anon"
     else
-        # Extraire 3 lignes de données
+        # Extraire lignes originales
         mysqldump -h "$MYSQL_HOST" -P "$MYSQL_PORT" -u"$MYSQL_USER" "$MYSQL_DB" \
-            --tables users --no-create-info 2>/dev/null | \
+            --tables users --extended-insert=false 2>/dev/null | \
             grep "INSERT" | head -3 > "${output_file}.orig"
         
-        # Anonymiser
+        # Anonymiser avec dump complet
         mysqldump -h "$MYSQL_HOST" -P "$MYSQL_PORT" -u"$MYSQL_USER" "$MYSQL_DB" \
-            --tables users --no-create-info 2>/dev/null | \
-            grep "INSERT" | head -3 | \
+            --tables users --extended-insert=false 2>/dev/null | \
+            head -50 | \
             $binary -t mysql -c $config 2>/dev/null | \
             grep "INSERT" > "${output_file}.anon"
     fi
