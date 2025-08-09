@@ -2,9 +2,13 @@ package misc
 
 import (
 	"bytes"
+	"fmt"
+	"strings"
+	"time"
 	ttemplate "text/template"
 
 	"github.com/Masterminds/sprig/v3"
+	"github.com/brianvoe/gofakeit/v6"
 )
 
 var (
@@ -41,6 +45,52 @@ func TemplateExec(tpl string, d any) ([]byte, bool, error) {
 		}
 		t["drop"] = func() string {
 			return drop
+		}
+
+		// Integration gofakeit pour données réalistes
+		gofakeit.Seed(time.Now().UnixNano())
+		
+		// Noms
+		t["fakerName"] = gofakeit.Name
+		t["fakerFirstName"] = gofakeit.FirstName
+		t["fakerLastName"] = gofakeit.LastName
+		
+		// Contact
+		t["fakerEmail"] = gofakeit.Email
+		t["fakerPhone"] = gofakeit.Phone
+		
+		// Dates
+		t["fakerDate"] = func() string {
+			return gofakeit.Date().Format("2006-01-02")
+		}
+		t["fakerBirthDate"] = func() string {
+			return gofakeit.DateRange(
+				time.Now().AddDate(-80, 0, 0),
+				time.Now().AddDate(-18, 0, 0),
+			).Format("2006-01-02")
+		}
+		
+		// Nombres
+		t["fakerFloat"] = func(min, max float64, precision int) string {
+			value := gofakeit.Float64Range(min, max)
+			return fmt.Sprintf("%."+fmt.Sprint(precision)+"f", value)
+		}
+		t["fakerInt"] = gofakeit.IntRange
+		
+		// Texte
+		t["fakerSentence"] = func(words int) string {
+			return gofakeit.LoremIpsumSentence(words)
+		}
+		
+		// Français
+		t["fakerPhoneFR"] = func() string {
+			return "+33" + gofakeit.Numerify("#########")
+		}
+		t["fakerEmailFR"] = func() string {
+			domains := []string{"gmail.com", "hotmail.fr", "orange.fr", "free.fr"}
+			return strings.ToLower(gofakeit.FirstName()) + "." + 
+			       strings.ToLower(gofakeit.LastName()) + "@" + 
+			       domains[gofakeit.IntRange(0, len(domains)-1)]
 		}
 
 		return t
