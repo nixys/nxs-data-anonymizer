@@ -1,16 +1,7 @@
-Date: Sam  9 aoû 2025 02:07:32 CEST
+=== Résultats du benchmark ===
+Date: Sam  9 aoû 2025 13:45:13 CEST
 
-
-=== BENCHMARK POSTGRESQL ===
-
-NXS-Native,PostgreSQL,.453295000
-NXS-Go-Faker,PostgreSQL,24.509406000
-
-=== BENCHMARK MYSQL ===
-
-NXS-Native,MySQL,.394213000
-NXS-Go-Faker,MySQL,24.684593000
-
-[0;34m=== RÉSUMÉ DES RÉSULTATS ===[0m
-
-Méthode,Base de données,Temps (secondes)
+PostgreSQL avec Faker intégré: .326036000s
+PostgreSQL avec fonctions natives: .301217000s
+MySQL avec Faker intégré: .442684000s
+MySQL avec fonctions natives: .439440000s
