@@ -1,0 +1,197 @@
+version: '3'
+
+vars:
+  POSTGRES_DB: testdb
+  POSTGRES_USER: postgres
+  POSTGRES_PASSWORD: postgres
+  MYSQL_DB: testdb
+  MYSQL_USER: root
+  MYSQL_PASSWORD: root
+
+tasks:
+  # ====================
+  # COMPILATION
+  # ====================
+  
+ 
+
+  build-faker:
+    desc: "Compiler le binaire NXS avec faker intégré"
+    cmds:
+      - echo "🔨 Compilation du binaire avec faker..."
+      - go build -o nxs-data-anonymizer-faker ..
+      - echo "✅ Binaire faker compilé"
+
+  build-native:
+    desc: "Compiler le binaire NXS natif"
+    cmds:
+      - echo "🔨 Compilation du binaire natif..."
+      - go build -o nxs-data-anonymizer ..
+      - echo "✅ Binaire natif compilé"
+
+  build-all:
+    desc: "Compiler tous les binaires"
+    deps: [build-faker, build-native]
+    cmds:
+      - echo "✅ Tous les binaires compilés"
+
+ 
+
+  # ====================
+  # DOCKER
+  # ====================
+  
+  docker-up:
+    desc: "Démarrer les bases de données Docker"
+    cmds:
+      - docker-compose up -d
+      - ./scripts/wait-for-db.sh
+
+  docker-down:
+    desc: "Arrêter et nettoyer Docker"
+    cmds:
+      - docker-compose down --volumes --remove-orphans
+
+  # ====================
+  # BASE DE DONNÉES
+  # ====================
+  
+  init-db:
+    desc: "Initialiser les bases de données"
+    deps: [docker-up]
+    cmds:
+      - echo "📊 Initialisation PostgreSQL..."
+      - docker exec -i benchmark-postgres psql -U postgres -d testdb < sql/init.sql
+      - echo "📊 Initialisation MySQL..."
+      - docker exec -i benchmark-mysql mysql -uroot -proot testdb < sql/init.sql
+      - echo "✅ Bases de données initialisées"
+
+  populate:
+    desc: "Populer les bases avec N utilisateurs (défaut 1000)"
+    cmds:
+      - python3 scripts/populate_db.py {{.CLI_ARGS | default "1000"}}
+
+  # ====================
+  # TESTS
+  # ====================
+  
+  test-pg-faker:
+    desc: "Test PostgreSQL avec faker intégré"
+    deps: [build-faker]
+    cmds:
+      - echo "🧪 Test PostgreSQL + Faker..."
+      - pg_dump -h localhost -U postgres -d testdb --data-only -t users 2>/dev/null | head -100 | ./nxs-data-anonymizer-faker -t pgsql -c postgres-faker.conf | head -5
+
+  test-pg-native:
+    desc: "Test PostgreSQL avec fonctions natives"
+    deps: [build-native]
+    cmds:
+      - echo "🧪 Test PostgreSQL + Native..."
+      - pg_dump -h localhost -U postgres -d testdb --data-only -t users 2>/dev/null | head -100 | ./nxs-data-anonymizer -t pgsql -c postgres-native.conf | head -5
+
+  test-mysql-faker:
+    desc: "Test MySQL avec faker intégré"
+    deps: [build-faker]
+    cmds:
+      - echo "🧪 Test MySQL + Faker..."
+      - mysqldump -h 127.0.0.1 -uroot -proot testdb users --extended-insert=false 2>/dev/null | head -100 | ./nxs-data-anonymizer-faker -t mysql -c mysql-faker.conf | grep INSERT | head -3
+
+  test-mysql-native:
+    desc: "Test MySQL avec fonctions natives"
+    deps: [build-native]
+    cmds:
+      - echo "🧪 Test MySQL + Native..."
+      - mysqldump -h 127.0.0.1 -uroot -proot testdb users --extended-insert=false 2>/dev/null | head -100 | ./nxs-data-anonymizer -t mysql -c mysql-native.conf | grep INSERT | head -3
+
+  # ====================
+  # BENCHMARK & VÉRIFICATION
+  # ====================
+  
+  benchmark:
+    desc: "Lancer le benchmark complet des 4 configurations"
+    deps: [build-faker]
+    cmds:
+      - ./scripts/test_benchmark.sh
+
+  verify:
+    desc: "Vérifier l'anonymisation (comparaison avant/après)"
+    cmds:
+      - ./scripts/verify_anonymization.sh
+
+  # ====================
+  # WORKFLOWS COMPLETS
+  # ====================
+  
+  setup:
+    desc: "Configuration initiale complète"
+    cmds:
+      - task: docker-up
+      - task: init-db
+      - task: populate
+      - echo "✅ Environnement prêt!"
+
+  run-all:
+    desc: "Workflow complet - setup, benchmark et vérification"
+    cmds:
+      - task: setup
+      - task: benchmark
+      - task: verify
+      - echo ""
+      - echo "📊 === RÉSULTATS FINAUX ==="
+      - cat benchmark-results.txt
+
+  quick-test:
+    desc: "Test rapide des 4 configurations"
+    deps: [build-all]
+    cmds:
+      - task: test-pg-faker
+      - task: test-pg-native
+      - task: test-mysql-faker
+      - task: test-mysql-native
+
+  # ====================
+  # NETTOYAGE
+  # ====================
+  
+  clean:
+    desc: "Nettoyer complètement l'environnement"
+    cmds:
+      - task: docker-down
+      - echo "🗑️  Nettoyage des fichiers..."
+      - rm -f benchmark-results.txt
+
+      - rm -f nxs-data-anonymizer-faker
+      - rm -rf verification_results/
+      - echo "✅ Environnement nettoyé"
+
+  # ====================
+  # AIDE
+  # ====================
+  
+  help:
+    desc: "Afficher l'aide"
+    cmds:
+      - echo "📚 NXS-DATA-ANONYMIZER BENCHMARK"
+      - echo ""
+      - echo "Commandes principales :"
+      - echo "  task setup        - Préparer l'environnement"
+      - echo "  task benchmark    - Lancer le benchmark"
+      - echo "  task verify       - Vérifier l'anonymisation"
+      - echo "  task run-all      - Workflow complet"
+      - echo ""
+      - echo "Tests individuels :"
+      - echo "  task test-pg-faker    - PostgreSQL + Faker"
+      - echo "  task test-pg-native   - PostgreSQL + Native"
+      - echo "  task test-mysql-faker - MySQL + Faker"
+      - echo "  task test-mysql-native- MySQL + Native"
+      - echo ""
+      - echo "Autres :"
+      - echo "  task build-all    - Compiler les binaires"
+      - echo "  task clean        - Nettoyer tout"
+      - echo ""
+      - echo "📖 Voir README.md pour la documentation complète"
+
+  default:
+    desc: "Commande par défaut"
+    cmds:
+      - task: help
