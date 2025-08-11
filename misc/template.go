@@ -86,11 +86,52 @@ func TemplateExec(tpl string, d any) ([]byte, bool, error) {
 		t["fakerPhoneFR"] = func() string {
 			return "+33" + gofakeit.Numerify("#########")
 		}
+		t["fakerMobileFR"] = func() string {
+			return "+336" + gofakeit.Numerify("########")
+		}
 		t["fakerEmailFR"] = func() string {
 			domains := []string{"gmail.com", "hotmail.fr", "orange.fr", "free.fr"}
 			return strings.ToLower(gofakeit.FirstName()) + "." + 
 			       strings.ToLower(gofakeit.LastName()) + "@" + 
 			       domains[gofakeit.IntRange(0, len(domains)-1)]
+		}
+		t["fakerAddress"] = func() string {
+			return fmt.Sprintf("%d %s %s", gofakeit.IntRange(1, 999), gofakeit.Street(), gofakeit.StreetSuffix())
+		}
+		t["fakerCityFR"] = func() string {
+			cities := []string{"Paris", "Lyon", "Marseille", "Toulouse", "Nice", "Nantes", "Strasbourg", "Montpellier", "Bordeaux", "Lille"}
+			return cities[gofakeit.IntRange(0, len(cities)-1)]
+		}
+		t["fakerPostalCodeFR"] = func() string {
+			return gofakeit.Numerify("#####")
+		}
+		t["fakerIBAN"] = func() string {
+			return "FR" + gofakeit.Numerify("#########################")
+		}
+		t["fakerBIC"] = func() string {
+			return gofakeit.LetterN(4) + "FR" + gofakeit.Numerify("##") + gofakeit.LetterN(3)
+		}
+		t["fakerSecuriteSocialeFR"] = func() string {
+			sexe := gofakeit.IntRange(1, 2)
+			annee := gofakeit.IntRange(20, 99)
+			mois := gofakeit.IntRange(1, 12)
+			dept := []string{"01", "75", "69", "13", "31", "44", "67", "34", "33", "59"}
+			commune := gofakeit.Numerify("###")
+			ordre := gofakeit.Numerify("###")
+			return fmt.Sprintf("%d%02d%02d%s%s%s", sexe, annee, mois, dept[gofakeit.IntRange(0, len(dept)-1)], commune, ordre)
+		}
+		t["fakerVATFR"] = func() string {
+			return "FR" + gofakeit.Numerify("###########")
+		}
+		t["fakerIPv4"] = gofakeit.IPv4Address
+		t["fakerIPv6"] = gofakeit.IPv6Address
+		
+		// Cartes de crédit
+		t["fakerCreditCard"] = gofakeit.CreditCardNumber
+		t["fakerCreditCardType"] = gofakeit.CreditCardType
+		t["fakerCreditCardCVV"] = gofakeit.CreditCardCvv
+		t["fakerCreditCardExpiry"] = func() string {
+			return gofakeit.CreditCardExp()
 		}
 
 		return t

@@ -15,16 +15,45 @@ import time
 fake = Faker('fr_FR')
 
 def generate_user_data(count):
-    """Génère N utilisateurs avec les 6 types de champs"""
+    """Génère N utilisateurs avec tous les champs"""
     users = []
     for i in range(count):
+        # Générer un mobile français (06 ou 07)
+        mobile_prefix = fake.random.choice(['06', '07'])
+        mobile = f"+33{mobile_prefix}{fake.numerify('########')}"
+        
+        # Générer IBAN français
+        iban = f"FR{fake.numerify('##')} {fake.numerify('#### #### #### #### #### ###')}"
+        
+        # Générer numéro sécurité sociale français
+        sexe = fake.random.choice([1, 2])
+        annee = fake.random.randint(50, 99)
+        mois = fake.random.randint(1, 12)
+        dept = fake.random.randint(1, 95)
+        commune = fake.random.randint(1, 999)
+        cle = fake.random.randint(1, 97)
+        ssn = f"{sexe}{annee:02d}{mois:02d}{dept:02d}{commune:03d}{cle:02d}"
+        
+        # Générer numéro TVA français
+        vat_key = fake.random.randint(10, 99)
+        vat_siren = fake.numerify('#########')
+        vat = f"FR{vat_key}{vat_siren}"
+        
         user = (
             fake.name(),                           # name
             fake.email(),                          # email  
             fake.phone_number(),                   # phone
+            mobile,                                # mobile
             fake.date_between('-50y', '-20y'),    # birth_date
             round(fake.random.uniform(25000, 75000), 2),  # salary
-            fake.text(max_nb_chars=200)           # description
+            fake.text(max_nb_chars=200),          # description
+            fake.address().replace('\n', ', '),   # address
+            fake.city(),                          # city
+            fake.postcode(),                      # postal_code
+            iban,                                 # iban
+            ssn,                                  # ssn
+            vat,                                  # vat_number
+            fake.ipv4()                          # ip_address
         )
         users.append(user)
     return users
@@ -46,8 +75,8 @@ def populate_postgres(users, host='localhost', port=5432, db='testdb', user='pos
         
         # Insertion en masse
         insert_query = """
-            INSERT INTO users (name, email, phone, birth_date, salary, description)
-            VALUES (%s, %s, %s, %s, %s, %s)
+            INSERT INTO users (name, email, phone, mobile, birth_date, salary, description, address, city, postal_code, iban, ssn, vat_number, ip_address)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
         
         start = time.time()
@@ -87,8 +116,8 @@ def populate_mysql(users, host='localhost', port=3306, db='testdb', user='root',
         
         # Insertion en masse
         insert_query = """
-            INSERT INTO users (name, email, phone, birth_date, salary, description)
-            VALUES (%s, %s, %s, %s, %s, %s)
+            INSERT INTO users (name, email, phone, mobile, birth_date, salary, description, address, city, postal_code, iban, ssn, vat_number, ip_address)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
         
         start = time.time()

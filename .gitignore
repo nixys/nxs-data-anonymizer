@@ -1,3 +1,5 @@
 /.project
 /.vscode
 /.tmp
+benchmark/verification_results/*
+benchmark/$.txt

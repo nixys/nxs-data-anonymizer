@@ -24,9 +24,9 @@ services:
       MYSQL_ROOT_HOST: '%'
     ports:
       - "3306:3306"
-    command: --default-authentication-plugin=mysql_native_password
+    command: --default-authentication-plugin=mysql_native_password --init-file=/dev/null
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
+      interval: 10s
+      timeout: 10s
+      retries: 15

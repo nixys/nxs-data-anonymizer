@@ -41,10 +41,10 @@ get_original_data() {
     
     if [ "$db_type" = "postgres" ]; then
         psql -h $POSTGRES_HOST -p $POSTGRES_PORT -U $POSTGRES_USER -d $POSTGRES_DB \
-            -c "SELECT id, name, email, phone FROM users LIMIT 3" > "$output_file"
+            -c "SELECT name, email, phone, mobile, city, postal_code, iban, ssn, vat_number, ip_address FROM users LIMIT 2" > "$output_file"
     else
         mysql -h $MYSQL_HOST -P $MYSQL_PORT -u$MYSQL_USER $MYSQL_DB \
-            -e "SELECT id, name, email, phone FROM users LIMIT 3" > "$output_file"
+            -e "SELECT name, email, phone, mobile, city, postal_code, iban, ssn, vat_number, ip_address FROM users LIMIT 2" > "$output_file"
     fi
 }
 
@@ -110,10 +110,10 @@ echo ""
 
 test_config "postgres" "faker" "postgres-faker.conf" "./nxs-data-anonymizer-faker" "verification_results/postgres_faker"
 
-echo -e "${YELLOW}Avant:${NC}"
-cat verification_results/postgres_faker.orig | cut -d$'\t' -f2-5 | head -1
-echo -e "${GREEN}Après:${NC}"
-cat verification_results/postgres_faker.anon | cut -d$'\t' -f2-5 | head -1
+echo -e "${YELLOW}Avant (nom, email, mobile, ville, IBAN, SSN):${NC}"
+cat verification_results/postgres_faker.orig | cut -d$'\t' -f2,3,5,9,12,13 | head -1
+echo -e "${GREEN}Après (nom, email, mobile, ville, IBAN, SSN):${NC}"
+cat verification_results/postgres_faker.anon | cut -d$'\t' -f2,3,5,9,12,13 | head -1
 echo ""
 
 # ========================================
@@ -124,10 +124,10 @@ echo ""
 
 test_config "postgres" "native" "postgres-native.conf" "./nxs-data-anonymizer" "verification_results/postgres_native"
 
-echo -e "${YELLOW}Avant:${NC}"
-cat verification_results/postgres_native.orig | cut -d$'\t' -f2-5 | head -1
-echo -e "${GREEN}Après:${NC}"
-cat verification_results/postgres_native.anon | cut -d$'\t' -f2-5 | head -1
+echo -e "${YELLOW}Avant (nom, email, mobile, ville, IBAN, SSN):${NC}"
+cat verification_results/postgres_native.orig | cut -d$'\t' -f2,3,5,9,12,13 | head -1
+echo -e "${GREEN}Après (nom, email, mobile, ville, IBAN, SSN):${NC}"
+cat verification_results/postgres_native.anon | cut -d$'\t' -f2,3,5,9,12,13 | head -1
 echo ""
 
 # ========================================
@@ -139,9 +139,9 @@ echo ""
 test_config "mysql" "faker" "mysql-faker.conf" "./nxs-data-anonymizer-faker" "verification_results/mysql_faker"
 
 echo -e "${YELLOW}Avant:${NC}"
-cat verification_results/mysql_faker.orig | head -1 | sed 's/INSERT INTO.* VALUES //' | cut -d, -f1-4
+cat verification_results/mysql_faker.orig | head -1 | sed 's/INSERT INTO.* VALUES //' | cut -d, -f1-6
 echo -e "${GREEN}Après:${NC}"
-cat verification_results/mysql_faker.anon | head -1 | sed 's/INSERT INTO.* VALUES //' | cut -d, -f1-4
+cat verification_results/mysql_faker.anon | head -1 | sed 's/INSERT INTO.* VALUES //' | cut -d, -f1-6
 echo ""
 
 # ========================================
@@ -153,9 +153,9 @@ echo ""
 test_config "mysql" "native" "mysql-native.conf" "./nxs-data-anonymizer" "verification_results/mysql_native"
 
 echo -e "${YELLOW}Avant:${NC}"
-cat verification_results/mysql_native.orig | head -1 | sed 's/INSERT INTO.* VALUES //' | cut -d, -f1-4
+cat verification_results/mysql_native.orig | head -1 | sed 's/INSERT INTO.* VALUES //' | cut -d, -f1-6
 echo -e "${GREEN}Après:${NC}"
-cat verification_results/mysql_native.anon | head -1 | sed 's/INSERT INTO.* VALUES //' | cut -d, -f1-4
+cat verification_results/mysql_native.anon | head -1 | sed 's/INSERT INTO.* VALUES //' | cut -d, -f1-6
 echo ""
 
 # ========================================
@@ -165,9 +165,9 @@ echo -e "${BLUE}==================================================${NC}"
 echo -e "${GREEN}📊 RÉSUMÉ DE LA VÉRIFICATION${NC}"
 echo -e "${BLUE}==================================================${NC}"
 echo ""
-echo "✓ PostgreSQL + Faker : Données réalistes (noms, emails, téléphones français)"
+echo "✓ PostgreSQL + Faker : Données réalistes (noms, emails, mobiles, IBAN, SSN, TVA français)"
 echo "✓ PostgreSQL + Natif : Données aléatoires (caractères alphanumériques)"
-echo "✓ MySQL + Faker : Données réalistes (noms, emails, téléphones français)"
+echo "✓ MySQL + Faker : Données réalistes (noms, emails, mobiles, IBAN, SSN, TVA français)"
 echo "✓ MySQL + Natif : Données aléatoires (caractères alphanumériques)"
 echo ""
 echo -e "${GREEN}✅ L'anonymisation fonctionne correctement pour les 4 configurations!${NC}"

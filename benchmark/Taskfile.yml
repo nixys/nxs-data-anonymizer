@@ -13,12 +13,7 @@ tasks:
   # COMPILATION
   # ====================
   
-  build-native:
-    desc: "Compiler le binaire NXS natif"
-    cmds:
-      - echo "🔨 Compilation du binaire natif..."
-      - cd .. && go build -o benchmark/nxs-data-anonymizer .
-      - echo "✅ Binaire natif compilé"
+ 
 
   build-faker:
     desc: "Compiler le binaire NXS avec faker intégré"
@@ -27,9 +22,7 @@ tasks:
       - go build -o nxs-data-anonymizer-faker ..
       - echo "✅ Binaire faker compilé"
 
-  build-all:
-    desc: "Compiler les deux binaires"
-    deps: [build-native, build-faker]
+ 
 
   # ====================
   # DOCKER
