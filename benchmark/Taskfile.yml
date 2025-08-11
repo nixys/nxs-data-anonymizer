@@ -22,6 +22,19 @@ tasks:
       - go build -o nxs-data-anonymizer-faker ..
       - echo "✅ Binaire faker compilé"
 
+  build-native:
+    desc: "Compiler le binaire NXS natif"
+    cmds:
+      - echo "🔨 Compilation du binaire natif..."
+      - go build -o nxs-data-anonymizer ..
+      - echo "✅ Binaire natif compilé"
+
+  build-all:
+    desc: "Compiler tous les binaires"
+    deps: [build-faker, build-native]
+    cmds:
+      - echo "✅ Tous les binaires compilés"
+
  
 
   # ====================
