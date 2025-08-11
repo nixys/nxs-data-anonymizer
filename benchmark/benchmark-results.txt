@@ -1,7 +1,7 @@
 === Résultats du benchmark ===
-Date: Mon Aug 11 10:24:12 CEST 2025
+Date: Mon Aug 11 11:13:29 CEST 2025
 
-PostgreSQL avec Faker intégré: 1.888327578s
-PostgreSQL avec fonctions natives: 3.083224199s
-MySQL avec Faker intégré: 1.557851921s
-MySQL avec fonctions natives: 2.140129446s
+PostgreSQL avec Faker intégré: .460101583s
+PostgreSQL avec fonctions natives: 1.514015848s
+MySQL avec Faker intégré: .086142565s
+MySQL avec fonctions natives: 1.365109182s

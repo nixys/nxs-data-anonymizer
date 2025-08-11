@@ -96,13 +96,12 @@ tasks:
   
   benchmark:
     desc: "Lancer le benchmark complet des 4 configurations"
-    deps: [build-all]
+    deps: [build-faker]
     cmds:
       - ./scripts/test_benchmark.sh
 
   verify:
     desc: "Vérifier l'anonymisation (comparaison avant/après)"
-    deps: [build-all]
     cmds:
       - ./scripts/verify_anonymization.sh
 
@@ -147,7 +146,7 @@ tasks:
       - task: docker-down
       - echo "🗑️  Nettoyage des fichiers..."
       - rm -f benchmark-results.txt
-      - rm -f nxs-data-anonymizer
+
       - rm -f nxs-data-anonymizer-faker
       - rm -rf verification_results/
       - echo "✅ Environnement nettoyé"
