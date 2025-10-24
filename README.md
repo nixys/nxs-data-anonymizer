@@ -28,7 +28,7 @@ Development and project teams which are dealing with production and test/dev/sta
 
 ## Quickstart
 
-Inspect your database structure and [set up](#settings) the nxs-data-anonymizer config in accordance with the sensitive data you need to anonymize. 
+Inspect your database structure and [set up](#settings) the nxs-data-anonymizer config in accordance with the sensitive data you need to anonymize.
 
 You are able to use this tool in any way you want. Three most common ways are described below.
 
@@ -63,7 +63,7 @@ anonymize:
     PG_HOST: ${PG_HOST_PROD}
     PG_USER: ${PG_USER_PROD}
     PGPASSWORD: ${PG_PASS_PROD}
-  before_script: 
+  before_script:
   - echo "${S3CMD_CFG}" > ~/.s3cmd
   - echo "${NXS_DA_CFG}" > /nxs-data-anonymizer.conf
   script:
@@ -91,7 +91,7 @@ restore-stage:
     PG_HOST: ${PG_HOST_STAGE}
     PG_USER: ${PG_USER_STAGE}
     PGPASSWORD: ${PG_PASS_STAGE}
-  before_script: 
+  before_script:
   - echo "${S3CMD_CFG}" > ~/.s3cmd
   script:
   - s3cmd --no-progress --quiet get s3://bucket/anondump.sql.gz - | gunzip | psql -h ${PG_HOST} -U ${PG_USER} --schema=${PG_SCHEMA} ${PG_DATABASE}
@@ -273,7 +273,7 @@ Link is used to create the same data with specified rules for different cells ac
 
 Each link element has following properties:
 - Able to contain multiple tables and columns for each table
-- All specified cells with the same data before anonymization will have same data after 
+- All specified cells with the same data before anonymization will have same data after
 - One common rule to generate new values
 
 | Option        | Type   | Required | Default value | Description                                                      |
@@ -300,18 +300,20 @@ Filters description for specified table.
 
 **Go template**
 
-To anonymize a database fields you may use a Go template with the [Sprig template library's](https://masterminds.github.io/sprig/) functions. 
+To anonymize a database fields you may use a Go template with the [Sprig template library's](https://masterminds.github.io/sprig/) functions.
 
 Additional filter functions:
 - `null`: set a field value to `NULL`
 - `isNull`: compare a field value with `NULL`
 - `drop`: drop whole row. If table has filters for several columns and at least one of them returns drop value, whole row will be skipped during the anonymization process
+- `randWords <int>` replace the contents with <int> random words
+- `randWordsReplace .Values.COLUMN_NAME` replace the contents with random words matching the word count of the specified field
 
 You may also use the following data in a templates:
 - Current table name. Statement: `{{ .TableName }}`
 - Current column name. Statement: `{{ .CurColumnName }}`
 - Values of other columns in the rules for same row (with values before substitutions). Statement: `{{ .Values.COLUMN_NAME }}` (e.g.: `{{ .Values.username }}`)
-- Global variables. Statement: `{{ .Variables.VARIABLE_NAME }}` (e.g.: `{{ .Variables.password }}`)  
+- Global variables. Statement: `{{ .Variables.VARIABLE_NAME }}` (e.g.: `{{ .Variables.password }}`)
 - Raw column data type. Statement: `{{ .ColumnTypeRaw }}`
 - Regex's capturing groups for the column data type. This variable has array type so you need to use `range` or `index` to access specific element. Statement: `{{ index .ColumnTypeGroups 0 0 }}`. See [Types](#types-settings) for details
 
@@ -381,19 +383,19 @@ _Values to masquerade a columns in accordance with the types see below._
 | `double precision` | `0.0` |
 | `decimal` |          `0.0` |
 | `dec` |              `0.0` |
-| `char` |       `randomized char` (String will be truncated to "COLUMN_SIZE" length.)| 
-| `varchar` |    `randomized varchar` (String will be truncated to "COLUMN_SIZE" length.) | 
-| `tinytext` |   `randomized tinytext` | 
-| `text` |       `randomized text` | 
-| `mediumtext` | `randomized mediumtext` | 
-| `longtext` |   `randomized longtext` | 
-| `enum` |       Last value from `enum` | 
-| `set` |        Last value from `set` | 
-| `date` |       `2024-01-01` | 
-| `datetime` |   `2024-01-01 00:00:00` | 
-| `timestamp` |  `2024-01-01 00:00:00` | 
-| `time` |       `00:00:00` | 
-| `year` |       `2024` | 
+| `char` |       `randomized char` (String will be truncated to "COLUMN_SIZE" length.)|
+| `varchar` |    `randomized varchar` (String will be truncated to "COLUMN_SIZE" length.) |
+| `tinytext` |   `randomized tinytext` |
+| `text` |       `randomized text` |
+| `mediumtext` | `randomized mediumtext` |
+| `longtext` |   `randomized longtext` |
+| `enum` |       Last value from `enum` |
+| `set` |        Last value from `set` |
+| `date` |       `2024-01-01` |
+| `datetime` |   `2024-01-01 00:00:00` |
+| `timestamp` |  `2024-01-01 00:00:00` |
+| `time` |       `00:00:00` |
+| `year` |       `2024` |
 | `json` |       `{"randomized": "json_data"}` |
 | `binary` |     `cmFuZG9taXplZCBiaW5hcnkgZGF0YQo=` |
 | `varbinary` |  `cmFuZG9taXplZCBiaW5hcnkgZGF0YQo=` |
@@ -466,7 +468,7 @@ security:
     columns: randomize
 # Excludes policy actions for the specified tables and columns.
   exceptions:
-    tables: 
+    tables:
     - public.posts
     columns:
     - title
@@ -517,7 +519,7 @@ then
 fi
 
 # Generate password for other users
-p=$(pwgen -s 5 1 2>&1) 
+p=$(pwgen -s 5 1 2>&1)
 if [ ! $? -eq 0 ];
 then
 
@@ -561,7 +563,7 @@ It's easy. You can find more examples in doc/examples.
 
 Following features are already in backlog for our development team and will be released soon:
 - [x] Global variables with the templated values you may use through the filters for all tables and columns
-- [x] Ability to delete tables and rows from faked dump 
+- [x] Ability to delete tables and rows from faked dump
 - [ ] Ability to output into log a custom messages. It’s quite useful it order to obtain some generated data like admin passwords, etc
 - [ ] Support of a big variety of databases
 
