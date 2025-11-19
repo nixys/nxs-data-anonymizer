@@ -12,6 +12,10 @@ import (
 	fsm "github.com/nixys/nxs-go-fsm"
 )
 
+func DataHandlerAddComma(ctx any, data []byte, trigger []byte) ([]byte, error) {
+    return append(data, ','), nil
+}
+
 type MySQL struct {
 	uctx         *userCtx
 	sourceReader io.Reader
@@ -527,7 +531,7 @@ func (m *MySQL) Run(ctx context.Context, w io.Writer) error {
 							Switch: fsm.Switch{
 								Trigger: []byte(","),
 							},
-							DataHandler: fsm.DataHandlerGenericVoid,
+							DataHandler: DataHandlerAddComma,
 						},
 						{
 							Name: stateSomeIntermediateState,
